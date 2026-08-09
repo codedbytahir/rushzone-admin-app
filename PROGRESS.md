@@ -16,12 +16,12 @@ This file is the single source of truth for implementation progress. Update it a
 | **2** | **Tournaments & Presets** | Wizard data model, lifecycle, presets (save/apply/list), free-slot lottery (slots_full), roster assignment, list filters + entry counts, entrants API | **✅ Done** | 100% |
 | **3** | **Rooms & Results Studio** | Private room save/release, Results Studio atomic publish/correction, player room delivery, ledger + stats | **✅ Done** | 100% |
 | 4 | Finance (Top-ups/Withdrawals) | Queues, proof signed URLs, held balances, dual control, Paid flow, wallet correct, cash gate | **✅ Done** | 100% |
-| 5 | Rewards & Engagement | Spin Wheel campaigns, server-side weighted pick, SSV, streaks, referrals, share analytics | 🔲 | 0% |
+| 5 | Rewards & Engagement | Spin Wheel campaigns, server-side weighted pick, SSV, streaks, referrals, share analytics | **✅ Done** | 100% |
 | 6 | Moderation & Content | Player search/restrictions, banners/announcement/featured, notifications | 🔲 | 0% |
 | 7 | Audit/Reports/Settings | Audit log immutability, reconciliation, reports export, flags (cash_ops/maintenance/version/policy URLs/SSV) | 🔲 | 0% |
 | 8 | Polish & Release | EAS builds, push (FCM), offline/empty/error states, backup/restore tests, beta | 🔲 | 0% |
 
-**Overall: 68% complete** (106/156 atomic tasks; Foundation 16 + Auth 22 + Tournaments 21 + Results 22 + Finance 25). **4 phases left (5-8).**
+**Overall: 84% complete** (131/156 atomic tasks; Foundation 16 + Auth 22 + Tournaments 21 + Results 22 + Finance 25 + Rewards 25). **3 phases left (6-8).**
 
 ---
 
@@ -140,12 +140,22 @@ This file is the single source of truth for implementation progress. Update it a
 
 ---
 
-## Phase 5 — Rewards & Engagement
+## Phase 5 — Rewards & Engagement ✅ COMPLETE (2026-08-09)
 
-| Task | Status |
-|---|---|
-| `admin/rewards/campaigns/*` + dashboard + SSV callback | 🔲 |
-| Streaks / Referrals / Share | 🔲 |
+| Task | Spec | Status |
+|---|---|---|
+| `admin-rewards-campaigns` — GET list/get, POST create (with items weighted), update (replace items), pause → status paused, audits `reward.campaign.*` | FULL §13 | [x] |
+| `admin-rewards-dashboard` — total/ad/paid attempts, coins_awarded, paid_spent (5 per paid), risk flags, by_campaign breakdown | FULL §13.2 | [x] |
+| `rewards-attempt-paid` — player, `reward_paid_attempt` RPC with idempotency, daily_cap/cooldown/global_cap enforced server-side | shared/03 wa | [x] |
+| `rewards-ssv-callback` — provider admob/unity, HMAC verify via `AD_SSV_KEY_*`, picks weighted `reward_items` random, `wallet_credit` `reward_award`, inserts `reward_attempts` ad source | eng/05 §3 | [x] |
+| `admin-streaks-config` — GET/POST `streak_config` in `settings`, audit `streak.config.update` | FULL §17.4 eng | [x] |
+| `admin-streaks-grant-freeze` — insert `streak_freezes` balance 1, audit `streak.freeze.grant` | app/06 | [x] |
+| `admin-referrals-config` — GET/POST `referral_config`, audit `referral.config.update` | FULL §17.4 ref | [x] |
+| `admin-referrals-list` — filter reward_status, 50 limit, count | FULL §8 ref | [x] |
+| `admin-referrals-review` — approve → `rewarded` + `wallet_credit` `referral_reward` if cfg>0, hold → `held`, reject → `rejected`, audit | FULL §8 rev | [x] |
+| `share-event` — player records `card_share_events` (result/win/prize/streak/spin/referral/profile) | shared/04 sha | [x] |
+| `admin-share-report` — total, by_type, by_channel funnel | shared/04 sha | [x] |
+| `src/lib/api.ts` — `listRewardCampaigns`, `create/update/pauseRewardCampaign`, `rewardDashboard`, `attemptPaidReward`, `get/updateStreakConfig`, `grantStreakFreeze`, `get/updateReferralConfig`, `listReferrals`, `reviewReferral`, `recordShare`, `shareReport` | — | [x] |
 
 ---
 
@@ -182,7 +192,7 @@ This file is the single source of truth for implementation progress. Update it a
 3. Update Overall % = checked tasks / 156.
 4. Copy `supabase/` + `docs/shared/` changes to `rushzone-user-app` before merging (sync rule).
 
-**Current step:** Phase 3 done → start **Phase 4 Finance** (`admin/topups/review` + `admin/withdrawals/mark-paid` with dual approval). Test locally:
+**Current step:** Phase 5 done → start **Phase 6 Moderation & Content** (`admin/players/search` + `note` + `restrict`, `admin/content/banners` + `notifications/send`). Test locally:
 
 ```bash
 supabase start
