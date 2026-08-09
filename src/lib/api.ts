@@ -80,5 +80,13 @@ export const api = {
   getFeatured: async () => callEdgeFunction<any>("admin-content-featured"),
   setFeatured: async (tournament_id: string | null) => callEdgeFunction<any>("admin-content-featured", { body: { tournament_id } }),
   sendNotification: async (payload: { title: string; body: string; type?: string; profile_id?: string; tournament_id?: string; broadcast?: boolean; confirm?: boolean; deep_link?: string }) => callEdgeFunction<any>("admin-notifications-send", { body: payload }),
-  getVersion: async () => callEdgeFunction<{ min_version: string; latest_version: string; force_update: boolean; maintenance: boolean }>("app/version"),
+  queryAudit: async (params?: { action?: string; actor_id?: string; entity_type?: string; limit?: number; offset?: number; since?: string }) => {
+    const q = new URLSearchParams(params as any).toString();
+    return callEdgeFunction<any>(`admin-audit-query${q ? `?${q}` : ""}`);
+  },
+  getReports: async () => callEdgeFunction<any>("admin-reports"),
+  getSettings: async (key?: string) => callEdgeFunction<any>(`admin-settings${key ? `?key=${key}` : ""}`),
+  updateSetting: async (key: string, value: any) => callEdgeFunction<any>("admin-settings", { body: { key, value } }),
+  checkReconciliation: async () => callEdgeFunction<any>("admin-reconciliation"),
+  getVersion: async () => callEdgeFunction<any>("app-version"),
 };

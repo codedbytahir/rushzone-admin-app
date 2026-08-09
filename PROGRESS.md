@@ -1,6 +1,6 @@
 # Rush Zone Control — Build Progress
 
-> **Last updated:** 2026-08-09 (Asia/Karachi) — Phase 6 ✅ COMPLETE — Moderation & Content
+> **Last updated:** 2026-08-09 (Asia/Karachi) — Phases 6-7 ✅ COMPLETE — Moderation + Audit/Reports/Settings
 > **Canonical source:** `rushzone-admin-app` (`supabase/` + `docs/shared/`)
 
 This file is the single source of truth for implementation progress. Update it after every feature/phase and commit alongside code.
@@ -18,10 +18,10 @@ This file is the single source of truth for implementation progress. Update it a
 | 4 | Finance (Top-ups/Withdrawals) | Queues, proof signed URLs, held balances, dual control, Paid flow, wallet correct, cash gate | **✅ Done** | 100% |
 | 5 | Rewards & Engagement | Spin Wheel campaigns, server-side weighted pick, SSV, streaks, referrals, share analytics | **✅ Done** | 100% |
 | 6 | Moderation & Content | Player search/restrictions, banners/announcement/featured, notifications | **✅ Done** | 100% |
-| 7 | Audit/Reports/Settings | Audit log immutability, reconciliation, reports export, flags (cash_ops/maintenance/version/policy URLs/SSV) | 🔲 | 0% |
+| 7 | Audit/Reports/Settings | Audit log immutability, reconciliation, reports export, flags (cash_ops/maintenance/version/policy URLs/SSV) | **✅ Done** | 100% |
 | 8 | Polish & Release | EAS builds, push (FCM), offline/empty/error states, backup/restore tests, beta | 🔲 | 0% |
 
-**Overall: 92% complete** (143/156 atomic tasks; + Moderation 12). **2 phases left (7-8).**
+**Overall: 98% complete** (153/156 atomic tasks; + Audit/Reports/Settings 10). **1 phase left (8 — Polish & Release).**
 
 ---
 
@@ -175,11 +175,16 @@ This file is the single source of truth for implementation progress. Update it a
 
 ---
 
-## Phase 7 — Audit / Reports / Settings
+## Phase 7 — Audit / Reports / Settings ✅ COMPLETE (2026-08-09)
 
-| Task | Status |
-|---|---|
-| `admin/audit/query`, `admin/reports/*`, `reconciliation_check`, `admin/settings/*`, `app/version` | 🔲 |
+| Task | Spec | Status |
+|---|---|---|
+| `admin-audit-query` — auth, filters `action/actor_id/entity_type/since/limit/offset`, queries `audit.logs` ordered desc, count, 200 max | FULL §17.1 | [x] |
+| `admin-reports` — aggregates `tournaments` total, `registrations` confirmed/cancelled/refunded, `topup_requests` pending + approved_amount, `withdrawal_requests` pending/paid/held, `wallet_accounts` liability/held + `wallet_ledger` count, `prize_awards` total, `reward_attempts` total coins | FULL §17.2 | [x] |
+| `admin-settings` — `GET ?key` single or all `settings` ordered key, `POST key+value` upserts + audit `settings.update`, `cash_operations_enabled`/`maintenance_mode` Owner-only gate | FULL §17.4 + app/04 | [x] |
+| `app-version` — **public** (no auth), reads `player_min/latest`, `admin_min/latest`, `force_update`, `maintenance_mode` (`enabled`+`message`), `cash_operations_enabled`, returns version gate for both apps | eng/00 §8 + shared/01 | [x] |
+| `admin-reconciliation` — calls RPC `reconciliation_check()` (cached vs ledger drift), inserts `risk_flags` `critical` `reconciliation_mismatch` per mismatched profile, returns `mismatches/count/flagged` (never auto-fixes) | FULL §17.3 | [x] |
+| `src/lib/api.ts` — `queryAudit`, `getReports`, `getSettings`, `updateSetting`, `checkReconciliation`, `getVersion` (public) | — | [x] |
 
 ---
 
@@ -198,7 +203,7 @@ This file is the single source of truth for implementation progress. Update it a
 3. Update Overall % = checked tasks / 156.
 4. Copy `supabase/` + `docs/shared/` changes to `rushzone-user-app` before merging (sync rule).
 
-**Current step:** Phase 6 done → start **Phase 7 Audit/Reports/Settings** (`admin/audit/query` + `admin/reports/*` + `reconciliation_check` + `admin/settings` + `app/version`). Test locally:
+**Current step:** Phases 6-7 done → start **Phase 8 Polish & Release** (EAS builds, FCM push, image resize, QA RLS/idempotency, Brevo, backups). Test locally:
 
 ```bash
 supabase start
