@@ -1,46 +1,80 @@
-// app/(auth)/login.tsx — Staff Email -> OTP -> Super Key (stubs for foundation)
-import { View, Text, TextInput, Pressable } from 'react-native';
-import { useState } from 'react';
-import { tokens } from '../../src/theme/tokens';
-import { SunsetStripe } from '../../components/SunsetStripe';
-
+import { View, Text, TextInput, Pressable, ActivityIndicator, Alert } from "react-native";
+import { useState } from "react";
+import { useRouter } from "expo-router";
+import { tokens } from "../../src/theme/tokens";
+import { SunsetStripe } from "../../components/SunsetStripe";
+import { supabase } from "../../src/lib/supabase";
+import { api } from "../../src/lib/api";
 export default function Login() {
-  const [step, setStep] = useState<'email'|'otp'|'superkey'>('email');
+  const router = useRouter();
+  const [step, setStep] = useState<"email" | "otp" | "superkey">("email");
+  const [email, setEmail] = useState("");
+  const [otp, setOtp] = useState("");
+  const [key, setKey] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState("");
+  async function sendOtp() {
+    if (!email.includes("@")) { setMsg("Enter valid email"); return; }
+    setLoading(true); setMsg("");
+    const { error } = await supabase.auth.signInWithOtp({ email: email.trim(), options: { shouldCreateUser: true } });
+    setLoading(false);
+    if (error) { setMsg(error.message); return; }
+    setMsg("OTP sent — check inbox and spam");
+    setStep("otp");
+  }
+  async function verifyOtp() {
+    if (otp.length < 6) { setMsg("Enter 6-digit OTP"); return; }
+    setLoading(true); setMsg("");
+    const { error } = await supabase.auth.verifyOtp({ email: email.trim(), token: otp.trim(), type: "email" });
+    setLoading(false);
+    if (error) { setMsg(error.message); return; }
+    setStep("superkey");
+  }
+  async function verifyKey() {
+    if (key.length < 6) { setMsg("Enter Super Key"); return; }
+    setLoading(true); setMsg("");
+    const { data, error } = await api.verifySuperKey(key.trim());
+    setLoading(false);
+    if (error || !data?.ok) { setMsg((error as any)?.error?.message ?? "Unable to verify admin access."); return; }
+    router.replace("/(tabs)/dashboard");
+  }
   return (
-    <View style={{ flex: 1, backgroundColor: tokens.color.canvas, padding: 24, justifyContent: 'center' }}>
-      <Text style={{ fontSize: 28, fontWeight: '800', color: tokens.color.ink, marginBottom: 8 }}>Rush Zone Control</Text>
+    <View style={{ flex: 1, backgroundColor: tokens.color.canvas, padding: 24, justifyContent: "center" }}>
+      <Text style={{ fontSize: 28, fontWeight: "800", color: tokens.color.ink, marginBottom: 8 }}>Rush Zone Control</Text>
       <Text style={{ color: tokens.color.secondary, marginBottom: 24 }}>Owner-approved access · Email OTP + Super Key</Text>
       <View style={{ backgroundColor: tokens.color.surface, borderRadius: tokens.radius.card, padding: 16, borderWidth: 1, borderColor: tokens.color.border }}>
-        {step==='email' && (
+        {step === "email" && (
           <>
             <Text style={{ color: tokens.color.ink, marginBottom: 8 }}>Staff email</Text>
-            <TextInput placeholder="owner@rushzone.pk" placeholderTextColor={tokens.color.disabled} style={{ borderWidth:1, borderColor: tokens.color.border, borderRadius: tokens.radius.input, padding: 12, color: tokens.color.ink }} />
-            <Pressable onPress={()=>setStep('otp')} style={{ backgroundColor: tokens.color.primary, borderRadius: tokens.radius.button, padding: 14, alignItems: 'center', marginTop: 16 }}>
-              <Text style={{ color: 'white', fontWeight: '700' }}>Send OTP</Text>
+            <TextInput value={email} onChangeText={setEmail} placeholder="owner@rushzone.pk" autoCapitalize="none" keyboardType="email-address" placeholderTextColor={tokens.color.disabled} style={{ borderWidth: 1, borderColor: tokens.color.border, borderRadius: tokens.radius.input, padding: 12, color: tokens.color.ink }} />
+            <Pressable onPress={sendOtp} disabled={loading} style={{ backgroundColor: tokens.color.primary, borderRadius: tokens.radius.button, padding: 14, alignItems: "center", marginTop: 16, opacity: loading ? 0.6 : 1 }}>
+              {loading ? <ActivityIndicator color="white" /> : <Text style={{ color: "white", fontWeight: "700" }}>Send OTP</Text>}
             </Pressable>
             <Text style={{ color: tokens.color.secondary, fontSize: 12, marginTop: 12 }}>This key is assigned and rotated only by the Rush Zone Owner.</Text>
           </>
         )}
-        {step==='otp' && (
+        {step === "otp" && (
           <>
-            <Text style={{ color: tokens.color.ink, marginBottom: 8 }}>Email OTP</Text>
-            <TextInput placeholder="6-digit code" keyboardType="number-pad" maxLength={6} style={{ borderWidth:1, borderColor: tokens.color.border, borderRadius: tokens.radius.input, padding: 12, letterSpacing: 8, textAlign: 'center' }} />
-            <Pressable onPress={()=>setStep('superkey')} style={{ backgroundColor: tokens.color.primary, borderRadius: tokens.radius.button, padding: 14, alignItems: 'center', marginTop: 16 }}>
-              <Text style={{ color: 'white', fontWeight: '700' }}>Verify OTP</Text>
+            <Text style={{ color: tokens.color.ink, marginBottom: 8 }}>Email OTP — sent to {email}</Text>
+            <TextInput value={otp} onChangeText={setOtp} placeholder="6-digit code" keyboardType="number-pad" maxLength={6} style={{ borderWidth: 1, borderColor: tokens.color.border, borderRadius: tokens.radius.input, padding: 12, letterSpacing: 8, textAlign: "center" }} />
+            <Pressable onPress={verifyOtp} disabled={loading} style={{ backgroundColor: tokens.color.primary, borderRadius: tokens.radius.button, padding: 14, alignItems: "center", marginTop: 16, opacity: loading ? 0.6 : 1 }}>
+              {loading ? <ActivityIndicator color="white" /> : <Text style={{ color: "white", fontWeight: "700" }}>Verify OTP</Text>}
             </Pressable>
+            <Pressable onPress={sendOtp} style={{ marginTop: 12, alignItems: "center" }}><Text style={{ color: tokens.color.primary }}>Resend OTP</Text></Pressable>
           </>
         )}
-        {step==='superkey' && (
+        {step === "superkey" && (
           <>
             <Text style={{ color: tokens.color.ink, marginBottom: 8 }}>Owner-issued Admin Super Key</Text>
-            <TextInput placeholder="••••••••" secureTextEntry style={{ borderWidth:1, borderColor: tokens.color.border, borderRadius: tokens.radius.input, padding: 12 }} />
-            <Pressable style={{ backgroundColor: tokens.color.ink, borderRadius: tokens.radius.button, padding: 14, alignItems: 'center', marginTop: 16 }}>
-              <Text style={{ color: 'white', fontWeight: '700' }}>Verify Super Key</Text>
+            <TextInput value={key} onChangeText={setKey} placeholder="RZ-XXXX-XXXX-XXXX" secureTextEntry autoCapitalize="characters" style={{ borderWidth: 1, borderColor: tokens.color.border, borderRadius: tokens.radius.input, padding: 12 }} />
+            <Pressable onPress={verifyKey} disabled={loading} style={{ backgroundColor: tokens.color.ink, borderRadius: tokens.radius.button, padding: 14, alignItems: "center", marginTop: 16, opacity: loading ? 0.6 : 1 }}>
+              {loading ? <ActivityIndicator color="white" /> : <Text style={{ color: "white", fontWeight: "700" }}>Verify Super Key</Text>}
             </Pressable>
           </>
         )}
+        {msg ? <Text style={{ color: tokens.color.danger, marginTop: 12, textAlign: "center" }}>{msg}</Text> : null}
       </View>
-      <View style={{ position: 'absolute', left:0, right:0, bottom:0 }}><SunsetStripe /></View>
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0 }}><SunsetStripe /></View>
     </View>
   );
 }
