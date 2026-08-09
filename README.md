@@ -55,8 +55,28 @@ Both repos contain an **identical copy** of `supabase/` and `docs/shared/` so ei
 - We build the admin app **first**, so **this repo (`rushzone-admin-app`) is the canonical source** for `supabase/` and `docs/shared/` during the admin-first phase.
 - Whenever you change anything under `supabase/` or `docs/shared/` here, copy the same change to the `rushzone-user-app` repo before merging (and vice-versa once player work begins). A future improvement could be a shared package/git subtree; for MVP, keep the two copies identical by convention.
 
+## Build Progress
+
+> **Foundation ✅ COMPLETE — 2026-08-09** — see [`PROGRESS.md`](./PROGRESS.md) and [`FOUNDATION.md`](./FOUNDATION.md) for detailed checklists.
+> 
+> | Phase | Status |
+> |---|---|
+> | **0 Foundation** (16 migrations, seed, RLS, Storage, Edge `_shared`, Expo scaffold w/ LargeSecureStore, sunset stripe) | **✅ 100%** |
+> | 1 Auth & RBAC (OTP + Super Key Argon2id, bootstrap, lockout) | 🔲 Next |
+> | 2 Tournaments & Presets | 🔲 |
+> | 3 Rooms & Results Studio | 🔲 |
+> | 4 Finance (Top-up/Withdrawal) | 🔲 |
+> | 5 Rewards & Engagement | 🔲 |
+> | 6 Moderation & Content | 🔲 |
+> | 7 Audit/Reports/Settings | 🔲 |
+> | 8 Polish & Release (EAS+FCM) | 🔲 |
+> **Overall: 12% (16/156 atomic tasks)**
+
+Foundation includes: `supabase/migrations/0001..0016`, `supabase/seed.sql`, `supabase/config.toml`, `supabase/functions/_shared/` (cors/supabase/auth/errors/validate/idempotency/audit), Expo app at root (`app/`, `src/lib/LargeSecureStore.ts`, `src/lib/supabase.ts`, `src/theme/tokens.ts`, `app/(auth)/login.tsx`, `app/(tabs)/dashboard.tsx` etc.). Run `supabase start && supabase db reset && supabase gen types typescript --local > types/database.types.ts && npm install && npm start`.
+
 ## Getting started (for coding agents)
 1. Read `docs/app/00-purpose-and-security.md`, then `docs/shared/engineering/00-repos-and-environments.md`.
 2. Read all of `docs/shared/` (database, auth/publishable key, wallet, Edge Functions, RLS).
 3. Start the Expo app at the repo root and implement admin-first slices per the build order in `docs/shared/engineering/00-repos-and-environments.md`.
 4. The Supabase client must use the **publishable key** (`sb_publishable_…`), never a legacy `anon`/`service_role` key, and the encrypted `LargeSecureStore` session adapter (see `docs/shared/engineering/04-client-and-session.md`).
+5. **Track progress** in `PROGRESS.md` (check off `[x]` after each phase). `FOUNDATION.md` is the foundation audit log — do not delete.
