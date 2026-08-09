@@ -3,15 +3,7 @@
 -- Default deny. Only explicit policies allow access via publishable key.
 -- Admin/audit tables have NO client policies — Edge Functions with secret key bypass RLS.
 
--- Helper: enable RLS on a table if not already
-do $$ declare t text; begin
-  for t in select table_name from information_schema.tables where table_schema in ('app','admin','audit') and table_type='BASE TABLE'
-  loop
-    execute format('alter table %I.%I enable row level security', split_part(t,'.',1) , t);
-  end loop;
-end $$;
-
--- Explicitly enable (in case information_schema query missed due to schema filter)
+-- Explicitly enable
 alter table app.profiles enable row level security;
 alter table app.profile_stats enable row level security;
 alter table app.wallet_accounts enable row level security;

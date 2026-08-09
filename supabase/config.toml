@@ -55,9 +55,4 @@ enabled = false
 [auth.external.google]
 enabled = false
 
-# Edge Functions
-[functions.topup-create]
-enabled = true
-verify_jwt = true
-
 # Custom publishable / secret keys are managed via env; no legacy anon/service_role keys committed
