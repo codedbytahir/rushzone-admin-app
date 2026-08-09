@@ -1,7 +1,7 @@
 {
   "name": "rushzone-admin-app",
   "version": "0.1.0",
-  "description": "Rush Zone Control — Owner & Admin operations app (Expo + Supabase). Foundation ready.",
+  "description": "Rush Zone Control \u2014 Owner & Admin operations app (Expo + Supabase). Foundation ready.",
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
@@ -35,7 +35,9 @@
     "react-native-screens": "3.31.1",
     "react-native-url-polyfill": "^2.0.0",
     "react-native-get-random-values": "~1.11.0",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "react-native-web": "~0.19.10",
+    "react-dom": "18.2.0"
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",

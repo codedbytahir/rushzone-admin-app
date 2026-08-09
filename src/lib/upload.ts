@@ -1,15 +1,16 @@
+import { Platform } from "react-native";
 import * as ImageManipulator from "expo-image-manipulator";
 import { supabase } from "./supabase";
 type Bucket = "tournament-thumbnails" | "banners" | "avatars" | "payment-proofs" | "admin-docs";
 export async function compressImage(uri: string, maxWidth = 1024, quality = 0.8) {
+  if (Platform.OS === "web") return uri;
   const result = await ImageManipulator.manipulateAsync(uri, [{ resize: { width: maxWidth } }], { compress: quality, format: ImageManipulator.SaveFormat.WEBP });
   return result.uri;
 }
 export async function uploadToBucket(bucket: Bucket, path: string, uri: string, contentType = "image/webp") {
   const res = await fetch(uri);
   const blob = await res.blob();
-  const { data: session } = await supabase.auth.getSession();
-  const { data, error } = await supabase.storage.from(bucket).upload(path, blob as any, { contentType, upsert: true });
+  const { error, data } = await supabase.storage.from(bucket).upload(path, blob as any, { contentType, upsert: true });
   if (error) throw error;
   return data.path;
 }
