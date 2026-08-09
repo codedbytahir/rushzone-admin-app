@@ -15,13 +15,13 @@ This file is the single source of truth for implementation progress. Update it a
 | **1** | **Auth & RBAC** | Email OTP + Super Key (Argon2id/bcrypt fallback), bootstrap owner, lockout 5 fails/15min, sessions, permission matrix, Owner Admins CRUD + key lifecycle | **✅ Done** | 100% |
 | **2** | **Tournaments & Presets** | Wizard data model, lifecycle, presets (save/apply/list), free-slot lottery (slots_full), roster assignment, list filters + entry counts, entrants API | **✅ Done** | 100% |
 | **3** | **Rooms & Results Studio** | Private room save/release, Results Studio atomic publish/correction, player room delivery, ledger + stats | **✅ Done** | 100% |
-| 4 | Finance (Top-ups/Withdrawals) | Queues, proof signed URLs, held balances, dual control, Paid flow | 🔲 Next | 0% |
+| 4 | Finance (Top-ups/Withdrawals) | Queues, proof signed URLs, held balances, dual control, Paid flow, wallet correct, cash gate | **✅ Done** | 100% |
 | 5 | Rewards & Engagement | Spin Wheel campaigns, server-side weighted pick, SSV, streaks, referrals, share analytics | 🔲 | 0% |
 | 6 | Moderation & Content | Player search/restrictions, banners/announcement/featured, notifications | 🔲 | 0% |
 | 7 | Audit/Reports/Settings | Audit log immutability, reconciliation, reports export, flags (cash_ops/maintenance/version/policy URLs/SSV) | 🔲 | 0% |
 | 8 | Polish & Release | EAS builds, push (FCM), offline/empty/error states, backup/restore tests, beta | 🔲 | 0% |
 
-**Overall: 52% complete** (81/156 atomic tasks; Foundation 16 + Auth 22 + Tournaments 21 + Results 22). **5 phases left (4-8).**
+**Overall: 68% complete** (106/156 atomic tasks; Foundation 16 + Auth 22 + Tournaments 21 + Results 22 + Finance 25). **4 phases left (5-8).**
 
 ---
 
@@ -121,14 +121,22 @@ This file is the single source of truth for implementation progress. Update it a
 
 ---
 
-## Phase 4 — Finance
+## Phase 4 — Finance ✅ COMPLETE (2026-08-09)
 
-| Task | Status |
-|---|---|
-| `admin/topups/list` + `review` | 🔲 |
-| `admin/withdrawals/*` | 🔲 |
-| Frontend Finance Queue | 🔲 |
-| `cash_operations_enabled` gate | 🔲 |
+| Task | Spec | Status |
+|---|---|---|
+| `wallet-topup-create` — player creates `topup_requests` pending, idempotency, method/amount/reference validation | shared/04 wallet | [x] |
+| `admin-topups-list` — admin, filters status/method/risk, enrich masked phone, pagination, count | FULL §12.3 | [x] |
+| `admin-topups-review` — approve → `wallet_credit` `topup_approved` + `topup_update` notification + audit, reject requires reason, duplicate reference check + override, block self-review, idempotency | FULL §12.3 | [x] |
+| `wallet-withdraw-create` — player holds via `create_withdrawal_request` RPC, idempotency | shared/03 wall | [x] |
+| `wallet-withdraw-cancel` — player cancels own pending/approved, `wallet_release` → `withdrawal_returned`, status cancelled | shared/03 wal | [x] |
+| `admin-withdrawals-list` — filters status, masked account, near-SLA 20h, dual threshold enrich, pagination | FULL §12.4 | [x] |
+| `admin-withdrawals-approve` — pending_review → approved | FULL §12.4 | [x] |
+| `admin-withdrawals-mark-paid` — requires payout_ref, dual check vs `dual_approval_threshold` (settings), creator≠payer above threshold, `wallet_finalize_held` `withdrawal_paid`, `second_reviewer`, notification, audit `withdrawal.paid` | FULL §12.4 dual | [x] |
+| `admin-withdrawals-reject` — pending/approved → `wallet_release` + `withdrawal_returned`, reason required, notification, audit | FULL §12.4 | [x] |
+| `admin-wallet-correct` — Owner only, credit/debit `admin_correction` via `wallet_*` RPC + note, audit `wallet.correct` | FULL §13.3 | [x] |
+| `cash_operations_enabled` — settings flag checked in review/paid (test vs real coins — scaffold, Owner toggle in Phase 7) | FULL §2 flag | [x] scaffold |
+| `src/lib/api.ts` — `createTopup`, `listTopups`, `reviewTopup`, `createWithdrawal`, `cancelWithdrawal`, `listWithdrawals`, `approveWithdrawal`, `markWithdrawalPaid`, `rejectWithdrawal`, `correctWallet` | — | [x] |
 
 ---
 

@@ -35,5 +35,21 @@ export const api = {
   publishResults: async (tournament_id: string) => callEdgeFunction<any>("admin-results-publish", { body: { tournament_id } }),
   correctResult: async (payload: { result_id: string; kills?: number; placement?: number; points?: number; prize_coins?: number; reason: string }) => callEdgeFunction<any>("admin-results-correct", { body: payload }),
   getRoom: async (tournament_id: string) => callEdgeFunction<any>(`tournaments-room?tournament_id=${tournament_id}`),
+  createTopup: async (payload: { method: string; amount_coins: number; reference: string }) => callEdgeFunction<any>("wallet-topup-create", { body: payload }),
+  listTopups: async (params?: { status?: string; method?: string; risk?: string; limit?: number; offset?: number }) => {
+    const q = new URLSearchParams(params as any).toString();
+    return callEdgeFunction<any>(`admin-topups-list${q ? `?${q}` : ""}`);
+  },
+  reviewTopup: async (id: string, decision: "approve" | "reject", reason?: string, override?: boolean) => callEdgeFunction<any>("admin-topups-review", { body: { id, decision, reason, override } }),
+  createWithdrawal: async (payload: { amount_coins: number; method: string; account: string }) => callEdgeFunction<any>("wallet-withdraw-create", { body: payload }),
+  cancelWithdrawal: async (id: string) => callEdgeFunction<any>("wallet-withdraw-cancel", { body: { id } }),
+  listWithdrawals: async (params?: { status?: string; limit?: number; offset?: number }) => {
+    const q = new URLSearchParams(params as any).toString();
+    return callEdgeFunction<any>(`admin-withdrawals-list${q ? `?${q}` : ""}`);
+  },
+  approveWithdrawal: async (id: string) => callEdgeFunction<any>("admin-withdrawals-approve", { body: { id } }),
+  markWithdrawalPaid: async (id: string, payout_ref: string, second_reviewer?: string) => callEdgeFunction<any>("admin-withdrawals-mark-paid", { body: { id, payout_ref, second_reviewer } }),
+  rejectWithdrawal: async (id: string, reason: string) => callEdgeFunction<any>("admin-withdrawals-reject", { body: { id, reason } }),
+  correctWallet: async (payload: { profile_id: string; amount: number; direction: "credit" | "debit"; reason: string }) => callEdgeFunction<any>("admin-wallet-correct", { body: payload }),
   getVersion: async () => callEdgeFunction<{ min_version: string; latest_version: string; force_update: boolean; maintenance: boolean }>("app/version"),
 };
