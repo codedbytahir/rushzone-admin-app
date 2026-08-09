@@ -51,6 +51,7 @@ export async function callEdgeFunction<T>(
 ): Promise<{ data: T | null; error: any }> {
   const jwt = opts.jwt ?? (await supabase.auth.getSession()).data.session?.access_token;
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (publishableKey) headers['apikey'] = publishableKey;
   if (jwt) headers['Authorization'] = `Bearer ${jwt}`;
   if (opts.idempotencyKey) headers['Idempotency-Key'] = opts.idempotencyKey;
   // Idempotent friendly: generate if mutating and not supplied

@@ -28,8 +28,7 @@ export default function Index() {
   }
 
   // If no session -> go to staff login (email OTP + Super Key)
-  if (!session) return <Redirect href="/(auth)/login" as const />;
+  if (!session) return <Redirect href="/(auth)/login" />;
 
-  // TODO: after OTP + Super Key verification, session will carry admin claims. For now, send to dashboard stub
-  return <Redirect href="/(tabs)/dashboard" as const />;
+  return <Redirect href="/(tabs)/dashboard" />;
 }

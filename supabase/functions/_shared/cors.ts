@@ -7,14 +7,10 @@ const ALLOWED_ORIGINS = [
   "http://localhost:54323",
 ];
 export function corsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get("origin") ?? "";
-  let host = "";
-  try { host = new URL(origin || "http://x").hostname; } catch {}
-  const isPreview = /\.e2b\.app$/.test(host) || /\.csb\.app$/.test(host) || host.endsWith(".csb.app") || origin.includes("localhost") || origin.includes("csb.app") || origin.includes("codesandbox.io") || origin.startsWith("https://");
-  const isAllowed = ALLOWED_ORIGINS.some((o) => origin.startsWith(o)) || isPreview || !origin;
+  const origin = req.headers.get("origin") ?? "*";
   return {
-    "Access-Control-Allow-Origin": isAllowed && origin ? origin : ALLOWED_ORIGINS[0],
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, idempotency-key, x-request-id",
+    "Access-Control-Allow-Origin": origin || "*",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, idempotency-key, x-request-id, x-bootstrap-secret",
     "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
     "Access-Control-Max-Age": "86400",
   };
