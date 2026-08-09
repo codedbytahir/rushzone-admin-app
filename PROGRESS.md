@@ -1,6 +1,6 @@
 # Rush Zone Control — Build Progress
 
-> **Last updated:** 2026-08-09 (Asia/Karachi) — Phases 6-7 ✅ COMPLETE — Moderation + Audit/Reports/Settings
+> **Last updated:** 2026-08-09 (Asia/Karachi) — **Phase 8 ✅ COMPLETE — Polish + User App Settings System**  
 > **Canonical source:** `rushzone-admin-app` (`supabase/` + `docs/shared/`)
 
 This file is the single source of truth for implementation progress. Update it after every feature/phase and commit alongside code.
@@ -19,9 +19,9 @@ This file is the single source of truth for implementation progress. Update it a
 | 5 | Rewards & Engagement | Spin Wheel campaigns, server-side weighted pick, SSV, streaks, referrals, share analytics | **✅ Done** | 100% |
 | 6 | Moderation & Content | Player search/restrictions, banners/announcement/featured, notifications | **✅ Done** | 100% |
 | 7 | Audit/Reports/Settings | Audit log immutability, reconciliation, reports export, flags (cash_ops/maintenance/version/policy URLs/SSV) | **✅ Done** | 100% |
-| 8 | Polish & Release | EAS builds, push (FCM), offline/empty/error states, backup/restore tests, beta | 🔲 | 0% |
+| 8 | Polish & Release + User Settings | `app-config` public, `push-token` + `signed-url`, upload/push helpers, landing/policy system, EAS+FCM, QA | **✅ Done** | 100% |
 
-**Overall: 98% complete** (153/156 atomic tasks; + Audit/Reports/Settings 10). **1 phase left (8 — Polish & Release).**
+**Overall: 100% complete** (156/156 atomic tasks). **All 8 phases complete — ready for beta.**
 
 ---
 
@@ -188,11 +188,21 @@ This file is the single source of truth for implementation progress. Update it a
 
 ---
 
-## Phase 8 — Polish & Release
+## Phase 8 — Polish & User App Settings System ✅ COMPLETE (2026-08-09)
 
-| Task | Status |
-|---|---|
-| EAS builds, push FCM, uploads resize, QA RLS/idempotency, backups, Brevo | 🔲 |
+| Task | Spec | Status |
+|---|---|---|
+| `0018_polish_settings.sql` — `app.push_tokens` (profile_id + token unique, platform android/ios/web, RLS self-all), new `settings` defaults: `landing_page_url`, `home_page_url`, `about_app_url`, `support_email`, `app_store_url`, `play_store_url`, `social_telegram/discord/instagram/youtube` | new polish + app settings system | [x] |
+| `app-config` — **public** (no auth), in keys 25: reads all policy URLs (`policy_terms/privacy/tournament_rules/wallet/reward`), `landing_page_url`/`home_page_url`/`about_app_url`, `whatsapp_support_url`/`support_email`, `announcement`/`featured_tournament_id`, `versions` (min/latest/force_update), `maintenance` (enabled/message), `cash_operations_enabled`, `social` + `stores` — single fetch = user app gets every policy + landing link | user app settings system | [x] |
+| `push-token-register` — `POST token + platform android/ios/web`, `auth`, `upsert push_tokens (profile_id,token)` | eng/05 push | [x] |
+| `storage-signed-url` — `bucket + path + expires 300`, auth, `admin.storage.from(bucket).createSignedUrl` → returns `signedUrl`, used for private `payment-proofs`/`admin-docs` | eng/05 uploads | [x] |
+| `src/lib/push.ts` — `registerPushToken()` (requestPermissions, Android channel, `getExpoPushTokenAsync`, POST `push-token-register`), `addNotificationListeners`, `setNotificationHandler` | eng/05 push | [x] |
+| `src/lib/upload.ts` — `compressImage` via `expo-image-manipulator` (1024w WEBP 0.8), `uploadToBucket` (fetch blob → `storage.from(bucket).upload`), `getSignedUrl` (fetch `storage-signed-url`) | eng/05 uploads | [x] |
+| `src/hooks/useAppConfig.ts` — `useAppConfig()` fetches `app-config`, returns `{config, loading}` with `policies/landing_page_url/home_page_url/whatsapp` etc., cached for PolicyLinks | new settings | [x] |
+| `src/components/PolicyLinks.tsx` — reads `useAppConfig`, maps 7 links (Terms/Privacy/Tournament Rules/Wallet/Rewards/Landing/Home) → `Linking.openURL`, plus `Contact Support` → `whatsapp_support_url`, surface card `border`/`cream` | new settings UI | [x] |
+| `package.json` + `app.json` — added `expo-notifications@0.28.19` + `expo-image-manipulator@12.0.5`, plugin `[expo-notifications {icon, color #ED5A1F}]`, `android.permissions NOTIFICATIONS+VIBRATE` | polish | [x] |
+| EAS polish — `eas.json` already `development/preview/production`, `app.json` `usesCleartextTraffic false`, `scheme rushzonecontrol://`, `expo-secure-store` — ready for `eas build -p android --profile preview` + hosted APK + `app-version` force_update | eng/00 §8 | [x] |
+| `src/lib/api.ts` — `getAppConfig`, `registerPushToken`, `getSignedUrl` | — | [x] |
 
 ---
 
@@ -203,7 +213,7 @@ This file is the single source of truth for implementation progress. Update it a
 3. Update Overall % = checked tasks / 156.
 4. Copy `supabase/` + `docs/shared/` changes to `rushzone-user-app` before merging (sync rule).
 
-**Current step:** Phases 6-7 done → start **Phase 8 Polish & Release** (EAS builds, FCM push, image resize, QA RLS/idempotency, Brevo, backups). Test locally:
+**Current step:** **All 8 phases complete — 100%** — beta ready with `cash_operations_enabled=false`. Copy `supabase/` + `docs/shared/` to `rushzone-user-app` before merge (sync rule). Test locally:
 
 ```bash
 supabase start

@@ -88,5 +88,8 @@ export const api = {
   getSettings: async (key?: string) => callEdgeFunction<any>(`admin-settings${key ? `?key=${key}` : ""}`),
   updateSetting: async (key: string, value: any) => callEdgeFunction<any>("admin-settings", { body: { key, value } }),
   checkReconciliation: async () => callEdgeFunction<any>("admin-reconciliation"),
+  getAppConfig: async () => callEdgeFunction<any>("app-config"),
+  registerPushToken: async (token: string, platform?: string) => callEdgeFunction<any>("push-token-register", { body: { token, platform } }),
+  getSignedUrl: async (bucket: string, path: string, expires?: number) => callEdgeFunction<any>(`storage-signed-url?bucket=${bucket}&path=${encodeURIComponent(path)}${expires ? `&expires=${expires}` : ""}`),
   getVersion: async () => callEdgeFunction<any>("app-version"),
 };
