@@ -29,5 +29,11 @@ export const api = {
   assignRoster: async (registration_id: string, roster_id: string | null) => callEdgeFunction<any>("admin-tournaments-assign-roster", { body: { registration_id, roster_id } }),
   setRoom: async (payload: { tournament_id: string; room_id: string; room_password: string; server_region?: string; instructions?: string; release_at?: string }) => callEdgeFunction<any>("admin-tournaments-set-room", { body: payload }),
   releaseRoom: async (tournament_id: string) => callEdgeFunction<any>("admin-tournaments-release-room", { body: { tournament_id } }),
+  getResults: async (tournament_id: string) => callEdgeFunction<any>(`admin-results-get?tournament_id=${tournament_id}`),
+  saveResultsDraft: async (tournament_id: string, results: any[]) => callEdgeFunction<any>("admin-results-save-draft", { body: { tournament_id, results } }),
+  previewResults: async (tournament_id: string) => callEdgeFunction<any>(`admin-results-preview?tournament_id=${tournament_id}`),
+  publishResults: async (tournament_id: string) => callEdgeFunction<any>("admin-results-publish", { body: { tournament_id } }),
+  correctResult: async (payload: { result_id: string; kills?: number; placement?: number; points?: number; prize_coins?: number; reason: string }) => callEdgeFunction<any>("admin-results-correct", { body: payload }),
+  getRoom: async (tournament_id: string) => callEdgeFunction<any>(`tournaments-room?tournament_id=${tournament_id}`),
   getVersion: async () => callEdgeFunction<{ min_version: string; latest_version: string; force_update: boolean; maintenance: boolean }>("app/version"),
 };

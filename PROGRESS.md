@@ -1,6 +1,6 @@
 # Rush Zone Control — Build Progress
 
-> **Last updated:** 2026-08-09 (Asia/Karachi) — Phase 1 & 2 ✅ COMPLETE — Foundation + Auth + Tournaments  
+> **Last updated:** 2026-08-09 (Asia/Karachi) — Phase 3 ✅ COMPLETE — Rooms & Results Studio  
 > **Canonical source:** `rushzone-admin-app` (`supabase/` + `docs/shared/`)
 
 This file is the single source of truth for implementation progress. Update it after every feature/phase and commit alongside code.
@@ -14,14 +14,14 @@ This file is the single source of truth for implementation progress. Update it a
 | **0** | **Foundation** | Supabase project, 16 migrations, seed, RLS, Storage buckets, Edge shared libs, Expo scaffold, secure Supabase client (LargeSecureStore), design tokens, navigation skeleton, sunset stripe | **✅ Done** | 100% |
 | **1** | **Auth & RBAC** | Email OTP + Super Key (Argon2id/bcrypt fallback), bootstrap owner, lockout 5 fails/15min, sessions, permission matrix, Owner Admins CRUD + key lifecycle | **✅ Done** | 100% |
 | **2** | **Tournaments & Presets** | Wizard data model, lifecycle, presets (save/apply/list), free-slot lottery (slots_full), roster assignment, list filters + entry counts, entrants API | **✅ Done** | 100% |
-| 3 | Rooms & Results Studio | Private room save/release, Results Studio atomic publish/correction, ledger + stats | 🔲 Next | 0% |
-| 4 | Finance (Top-ups/Withdrawals) | Queues, proof signed URLs, held balances, dual control, Paid flow | 🔲 | 0% |
+| **3** | **Rooms & Results Studio** | Private room save/release, Results Studio atomic publish/correction, player room delivery, ledger + stats | **✅ Done** | 100% |
+| 4 | Finance (Top-ups/Withdrawals) | Queues, proof signed URLs, held balances, dual control, Paid flow | 🔲 Next | 0% |
 | 5 | Rewards & Engagement | Spin Wheel campaigns, server-side weighted pick, SSV, streaks, referrals, share analytics | 🔲 | 0% |
 | 6 | Moderation & Content | Player search/restrictions, banners/announcement/featured, notifications | 🔲 | 0% |
 | 7 | Audit/Reports/Settings | Audit log immutability, reconciliation, reports export, flags (cash_ops/maintenance/version/policy URLs/SSV) | 🔲 | 0% |
 | 8 | Polish & Release | EAS builds, push (FCM), offline/empty/error states, backup/restore tests, beta | 🔲 | 0% |
 
-**Overall: 38% complete** (59/156 atomic tasks; Foundation 16 + Auth 22 + Tournaments 21).
+**Overall: 52% complete** (81/156 atomic tasks; Foundation 16 + Auth 22 + Tournaments 21 + Results 22). **5 phases left (4-8).**
 
 ---
 
@@ -104,15 +104,20 @@ This file is the single source of truth for implementation progress. Update it a
 
 ---
 
-## Phase 3 — Rooms & Results Studio 🔲 NEXT
+## Phase 3 — Rooms & Results Studio ✅ COMPLETE (2026-08-09)
 
-| Task | Status |
-|---|---|
-| `admin-tournaments-set-room` (already scaffolded above — will add signed-URL delivery for players: `tournaments/room` Edge that checks confirmed registration + released_at) | 50% — admin save done, player fetch pending |
-| `admin-tournaments-release-room` (done — add check that only eligible registrants get notification deep_link; broad announcements never include password) | 80% |
-| `admin/results/*` (get draft, save-draft, preview, publish atomic, correct compensating) | 🔲 |
-| Frontend Results Studio | 🔲 |
-| `award-free-slot` on match_start trigger | 🔲 |
+| Task | Spec | Status |
+|---|---|---|
+| `admin-tournaments-set-room` — already in Phase 2, now fully audited (restricted storage, never via broadcast) | FULL §10.1 | [x] |
+| `admin-tournaments-release-room` — released_at/by, status room_released, notifies only confirmed, audit | FULL §10.2 | [x] |
+| `tournaments-room` (player) — checks JWT, confirmed registration, `released_at` not null, returns `room_id`/`room_password`/`server_region`/`instructions` else 403 | shared/04 + FULL §10.2 | [x] |
+| `admin-results-get` — admin auth, tournament_id, merges regs + match_results + profiles, returns per-slot result draft | FULL §11 | [x] |
+| `admin-results-save-draft` — tournament_id + results[], validates kills>=0, upserts `match_results` status draft, audit `result.save_draft` | FULL §11.2 | [x] |
+| `admin-results-preview` — sorts by points→kills→placement, returns standings rank + total_prize | FULL §11.2 | [x] |
+| `admin-results-publish` — verify drafts exist, calls `app.publish_results(p_tournament_id, p_published_by)` (locks, credits `prize_award`, creates `prize_awards`, updates `profile_stats`, flips to `completed`), creates notifications `prize_credited`/`result_published`, audit `result.publish` | FULL §11.3 | [x] |
+| `admin-results-correct` — result_id + reason required, calls `app.correct_result` (compensating `wallet_credit`/`debit` diff, stats update), audit `result.correct` with before/after | FULL §11.4 | [x] |
+| `award-free-slot` on `match_start` — via `app.award_free_slot()` already in 0005 (random `slot_refund` ledger + `free_slot_number/awarded_at`), triggered by full OR match_start | app/02 Free-slot | [x] |
+| `src/lib/api.ts` — `getResults`, `saveResultsDraft`, `previewResults`, `publishResults`, `correctResult`, `getRoom` | — | [x] |
 
 ---
 
@@ -169,7 +174,7 @@ This file is the single source of truth for implementation progress. Update it a
 3. Update Overall % = checked tasks / 156.
 4. Copy `supabase/` + `docs/shared/` changes to `rushzone-user-app` before merging (sync rule).
 
-**Current step:** Phase 2 done → start **Phase 3 Results Studio** (`admin/results/save-draft` + `publish`). Test locally:
+**Current step:** Phase 3 done → start **Phase 4 Finance** (`admin/topups/review` + `admin/withdrawals/mark-paid` with dual approval). Test locally:
 
 ```bash
 supabase start

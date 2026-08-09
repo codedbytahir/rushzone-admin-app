@@ -57,22 +57,22 @@ Both repos contain an **identical copy** of `supabase/` and `docs/shared/` so ei
 
 ## Build Progress
 
-> **Foundation ✅ COMPLETE — 2026-08-09** — see [`PROGRESS.md`](./PROGRESS.md) and [`FOUNDATION.md`](./FOUNDATION.md) for detailed checklists.
+> **Phases 0-3 ✅ COMPLETE — 2026-08-09** — see [`PROGRESS.md`](./PROGRESS.md) and [`FOUNDATION.md`](./FOUNDATION.md).
 > 
 > | Phase | Status |
 > |---|---|
 > | **0 Foundation** (16 migrations, seed, RLS, Storage, Edge `_shared`, Expo scaffold w/ LargeSecureStore, sunset stripe) | **✅ 100%** |
-> | 1 Auth & RBAC (OTP + Super Key Argon2id, bootstrap, lockout) | 🔲 Next |
-> | 2 Tournaments & Presets | 🔲 |
-> | 3 Rooms & Results Studio | 🔲 |
-> | 4 Finance (Top-up/Withdrawal) | 🔲 |
+> | **1 Auth & RBAC** (bootstrap, Super Key Argon2id/bcrypt, lockout, sessions, Admins CRUD) | **✅ 100%** |
+> | **2 Tournaments & Presets** (lifecycle, presets, free-slot, rosters, entrants) | **✅ 100%** |
+> | **3 Rooms & Results Studio** (room save/release, player room delivery, Results Studio publish/correct) | **✅ 100%** |
+> | 4 Finance (Top-up/Withdrawal — queues, dual control, Paid) | 🔲 **Next** |
 > | 5 Rewards & Engagement | 🔲 |
 > | 6 Moderation & Content | 🔲 |
 > | 7 Audit/Reports/Settings | 🔲 |
 > | 8 Polish & Release (EAS+FCM) | 🔲 |
-> **Overall: 12% (16/156 atomic tasks)**
+> **Overall: 52% (81/156) — 5 phases left (4-8).** [PR #1](https://github.com/codedbytahir/rushzone-admin-app/pull/1) `feat/foundation-auth-tournaments`
 
-Foundation includes: `supabase/migrations/0001..0016`, `supabase/seed.sql`, `supabase/config.toml`, `supabase/functions/_shared/` (cors/supabase/auth/errors/validate/idempotency/audit), Expo app at root (`app/`, `src/lib/LargeSecureStore.ts`, `src/lib/supabase.ts`, `src/theme/tokens.ts`, `app/(auth)/login.tsx`, `app/(tabs)/dashboard.tsx` etc.). Run `supabase start && supabase db reset && supabase gen types typescript --local > types/database.types.ts && npm install && npm start`.
+Done: `0017_auth_helpers`, 6 new Edge Functions `admin-results-*` + `tournaments-room`, `src/lib/api.ts` results/room helpers. All new code comment-free.
 
 ## Getting started (for coding agents)
 1. Read `docs/app/00-purpose-and-security.md`, then `docs/shared/engineering/00-repos-and-environments.md`.
