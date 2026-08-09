@@ -57,7 +57,7 @@ Both repos contain an **identical copy** of `supabase/` and `docs/shared/` so ei
 
 ## Build Progress
 
-> **Phases 0-5 ✅ COMPLETE — 2026-08-09** — see [`PROGRESS.md`](./PROGRESS.md).
+> **Phases 0-6 ✅ COMPLETE — 2026-08-09** — see [`PROGRESS.md`](./PROGRESS.md).
 > 
 > | Phase | Status |
 > |---|---|
@@ -67,10 +67,10 @@ Both repos contain an **identical copy** of `supabase/` and `docs/shared/` so ei
 > | **3 Rooms & Results Studio** (room delivery, Results publish/correct) | **✅ 100%** |
 > | **4 Finance** (topups/withdrawals, dual, wallet correct) | **✅ 100%** |
 > | **5 Rewards & Engagement** (Spin Wheel, SSV, streaks, referrals, share) | **✅ 100%** |
-> | 6 Moderation & Content | 🔲 **Next** |
-> | 7 Audit/Reports/Settings | 🔲 |
+> | **6 Moderation & Content** (player search/restrict, banners, announcement, featured, notifications) | **✅ 100%** |
+> | 7 Audit/Reports/Settings | 🔲 **Next** |
 > | 8 Polish & Release | 🔲 |
-> **Overall: 84% (131/156) — 3 phases left (6-8).** [PR #1](https://github.com/codedbytahir/rushzone-admin-app/pull/1)
+> **Overall: 92% (143/156) — 2 phases left (7-8).** [PR #1](https://github.com/codedbytahir/rushzone-admin-app/pull/1)
 
 ## Getting started (for coding agents)
 1. Read `docs/app/00-purpose-and-security.md`, then `docs/shared/engineering/00-repos-and-environments.md`.

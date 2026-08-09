@@ -1,6 +1,6 @@
 # Rush Zone Control — Build Progress
 
-> **Last updated:** 2026-08-09 (Asia/Karachi) — Phase 3 ✅ COMPLETE — Rooms & Results Studio  
+> **Last updated:** 2026-08-09 (Asia/Karachi) — Phase 6 ✅ COMPLETE — Moderation & Content
 > **Canonical source:** `rushzone-admin-app` (`supabase/` + `docs/shared/`)
 
 This file is the single source of truth for implementation progress. Update it after every feature/phase and commit alongside code.
@@ -17,11 +17,11 @@ This file is the single source of truth for implementation progress. Update it a
 | **3** | **Rooms & Results Studio** | Private room save/release, Results Studio atomic publish/correction, player room delivery, ledger + stats | **✅ Done** | 100% |
 | 4 | Finance (Top-ups/Withdrawals) | Queues, proof signed URLs, held balances, dual control, Paid flow, wallet correct, cash gate | **✅ Done** | 100% |
 | 5 | Rewards & Engagement | Spin Wheel campaigns, server-side weighted pick, SSV, streaks, referrals, share analytics | **✅ Done** | 100% |
-| 6 | Moderation & Content | Player search/restrictions, banners/announcement/featured, notifications | 🔲 | 0% |
+| 6 | Moderation & Content | Player search/restrictions, banners/announcement/featured, notifications | **✅ Done** | 100% |
 | 7 | Audit/Reports/Settings | Audit log immutability, reconciliation, reports export, flags (cash_ops/maintenance/version/policy URLs/SSV) | 🔲 | 0% |
 | 8 | Polish & Release | EAS builds, push (FCM), offline/empty/error states, backup/restore tests, beta | 🔲 | 0% |
 
-**Overall: 84% complete** (131/156 atomic tasks; Foundation 16 + Auth 22 + Tournaments 21 + Results 22 + Finance 25 + Rewards 25). **3 phases left (6-8).**
+**Overall: 92% complete** (143/156 atomic tasks; + Moderation 12). **2 phases left (7-8).**
 
 ---
 
@@ -159,13 +159,19 @@ This file is the single source of truth for implementation progress. Update it a
 
 ---
 
-## Phase 6 — Moderation & Content
+## Phase 6 — Moderation & Content ✅ COMPLETE (2026-08-09)
 
-| Task | Status |
-|---|---|
-| `admin/players/search` + `note` + `restrict` | 🔲 |
-| `admin/content/banners/*` + announcement + featured | 🔲 |
-| `admin/notifications/send` | 🔲 |
+| Task | Spec | Status |
+|---|---|---|
+| `admin-players-search` — admin, `q` min 2 chars, searches `display_name ilike`, fallback `app_uid/ff_uid eq`, phone `whatsapp_phone eq`, reg `tournament_id` → profiles, masked phone `***`, 20 limit | FULL §14 | [x] |
+| `admin-players-get` — `profile_id`, returns profile + `whatsapp_phone_masked` + `profile_stats` + `registrations` + `match_results` + `internal_notes` + `restrictions` + `risk_flags`, wallet (balances + 20 ledger) only if caller has `withdrawal.pay/topup.review/reports.view` | FULL §14.2 | [x] |
+| `admin-players-note` — `profile_id + body 1..2000`, inserts `internal_notes`, audit `player.note.add` | FULL §14.3 | [x] |
+| `admin-players-restrict` — `type entry/rewards/wallet/suspend/ban`, `reason` 5+ chars, optional `expires_at`, `lift` → `lifted_at` + status `active`, else insert `restrictions` + set `profiles.status` (`banned/suspended/restricted`), audit `player.restrict.*` | FULL §14.3 | [x] |
+| `admin-content-banners` — `GET` ordered `sort_order`, `POST create` needs `image_path` (storage `banners`), `update` allowlist, `delete`, audits `content.banner.*` | FULL §15 + app/06 | [x] |
+| `admin-content-announcement` — `GET` returns `announcement` `{text,link,active}` from `settings`, `POST` upsert + audit `content.announcement.update` | app/06 | [x] |
+| `admin-content-featured` — `GET` `featured_tournament_id`, `POST` validates tournament exists, upserts `settings` + audit `content.featured.update` | app/06 | [x] |
+| `admin-notifications-send` — `title+body` required, blocks `room_password/OTP/Super Key`, `isBroadcast` needs `confirm true` → loops `profiles` 1000, `tournament_id` → `registrations` → notify, `profile_id` → single, audits `notification.*` | FULL §15 | [x] |
+| `src/lib/api.ts` — `searchPlayers`, `getPlayer`, `addPlayerNote`, `restrictPlayer`, `list/create/update/deleteBanner`, `get/updateAnnouncement`, `get/setFeatured`, `sendNotification` | — | [x] |
 
 ---
 
@@ -192,7 +198,7 @@ This file is the single source of truth for implementation progress. Update it a
 3. Update Overall % = checked tasks / 156.
 4. Copy `supabase/` + `docs/shared/` changes to `rushzone-user-app` before merging (sync rule).
 
-**Current step:** Phase 5 done → start **Phase 6 Moderation & Content** (`admin/players/search` + `note` + `restrict`, `admin/content/banners` + `notifications/send`). Test locally:
+**Current step:** Phase 6 done → start **Phase 7 Audit/Reports/Settings** (`admin/audit/query` + `admin/reports/*` + `reconciliation_check` + `admin/settings` + `app/version`). Test locally:
 
 ```bash
 supabase start
