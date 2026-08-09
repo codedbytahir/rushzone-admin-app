@@ -32,8 +32,8 @@ Deno.serve(async (req: Request) => {
       verified = false;
       if (hashRow?.key_hash) {
         try {
-          const { default: bcrypt } = await import("https://deno.land/x/bcrypt@v0.4.1/mod.ts");
-          verified = await bcrypt.compare(superKey, hashRow.key_hash);
+          const bcrypt = await import("https://esm.sh/bcryptjs@2.4.3");
+          verified = bcrypt.compareSync(superKey, hashRow.key_hash);
         } catch { verified = false; }
       }
     }

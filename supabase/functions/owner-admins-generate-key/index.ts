@@ -32,8 +32,8 @@ Deno.serve(async (req: Request) => {
     let hash: string | null = hashData as any;
     if (hashErr || !hash) {
       try {
-        const { default: bcrypt } = await import("https://deno.land/x/bcrypt@v0.4.1/mod.ts");
-        hash = await bcrypt.hash(plaintext);
+        const bcrypt = await import("https://esm.sh/bcryptjs@2.4.3");
+        hash = bcrypt.hashSync(plaintext, 10);
       } catch { hash = null; }
     }
     if (!hash) return withCors(req, jsonError("INTERNAL" as any, "Hash failed", 500));

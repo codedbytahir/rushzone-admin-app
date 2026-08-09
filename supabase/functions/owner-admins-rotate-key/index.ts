@@ -29,8 +29,8 @@ Deno.serve(async (req: Request) => {
     const { data: hashData } = await admin.rpc("hash_super_key", { p_plaintext: plaintext } as any);
     let hash: string | null = hashData as any;
     if (!hash) {
-      const { default: bcrypt } = await import("https://deno.land/x/bcrypt@v0.4.1/mod.ts");
-      hash = await bcrypt.hash(plaintext);
+      const bcrypt = await import("https://esm.sh/bcryptjs@2.4.3");
+      hash = bcrypt.hashSync(plaintext, 10);
     }
     const { data: cred } = await admin.schema("admin").from("security_credentials").select("key_version").eq("assignment_id", assignmentId).maybeSingle();
     const nextVersion = (cred?.key_version ?? 0) + 1;
