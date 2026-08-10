@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
 import { Redirect } from 'expo-router';
 import { supabase } from '../src/lib/supabase';
+import { api } from '../src/lib/api';
+import { setAdminSession, clearAdminSession } from '../src/lib/adminSession';
 import { tokens } from '../src/theme/tokens';
 import { SunsetStripe } from '../components/SunsetStripe';
 
@@ -11,10 +13,21 @@ export default function Index() {
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (data.session) {
+        // Resolve permissions BEFORE redirecting so gated UI renders correctly on cold start.
+        const res = await api.getMyAssignment();
+        if (res.data) {
+          setAdminSession({ assignmentId: res.data.assignment?.id, isOwner: !!res.data.is_owner, permissions: res.data.permissions ?? [] });
+        }
+      }
       setSession(data.session);
       setChecked(true);
     });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+      if (!s) clearAdminSession();
+    });
+    return () => sub.subscription.unsubscribe();
   }, []);
 
   if (!checked) {

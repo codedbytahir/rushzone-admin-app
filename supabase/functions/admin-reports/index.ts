@@ -1,17 +1,13 @@
 import { handleCors, corsHeaders, withCors } from "../_shared/cors.ts";
+import { requireAdmin } from "../_shared/auth.ts";
 import { createAdminClient } from "../_shared/supabase.ts";
 import { jsonError } from "../_shared/errors.ts";
 Deno.serve(async (req: Request) => {
   const cors = handleCors(req);
   if (cors) return cors;
   try {
-    const auth = req.headers.get("authorization") ?? "";
-    const m = auth.match(/^Bearer\s+(.+)$/i);
-    if (!m) return withCors(req, jsonError("UNAUTHORIZED" as any, "Missing token", 401));
-    const jwt = m[1];
+    const { user } = await requireAdmin(req, "reports.view");
     const admin = createAdminClient();
-    const { data: userData } = await admin.auth.getUser(jwt);
-    if (!userData?.user) return withCors(req, jsonError("UNAUTHORIZED" as any, "Invalid token", 401));
     const { data: tCount } = await admin.schema("app").from("tournaments").select("id", { count: "exact", head: true });
     const { data: regs } = await admin.schema("app").from("registrations").select("id, status");
     const confirmed = (regs ?? []).filter((r: any)=> r.status === "confirmed").length;
@@ -34,6 +30,6 @@ Deno.serve(async (req: Request) => {
     const { data: ledgers } = await admin.schema("app").from("wallet_ledger").select("id", { count: "exact", head: true });
     return withCors(req, new Response(JSON.stringify({ tournaments: { total: tCount as any ?? 0 }, registrations: { confirmed, cancelled, refunded }, topups: { pending: topupPending, approved_amount: topupApproved }, withdrawals: { pending_review: wdPending, paid_amount: wdPaid, held_amount: wdHeld }, wallet: { liability, held: heldTotal, ledger_entries: ledgers as any ?? 0 }, prizes: { total_awarded: prizeTotal }, rewards: { total_coins: rewardPaid } }), { headers: { "Content-Type": "application/json", ...corsHeaders(req) } }));
   } catch (e) {
-    return withCors(req, jsonError("INTERNAL" as any, String(e), 500));
+    return withCors(req, e instanceof Response ? e : jsonError("INTERNAL" as any, String(e), 500));
   }
 });

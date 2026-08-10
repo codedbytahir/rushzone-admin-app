@@ -1,4 +1,5 @@
 import { handleCors, corsHeaders, withCors } from "../_shared/cors.ts";
+import { requireAdmin } from "../_shared/auth.ts";
 import { createAdminClient } from "../_shared/supabase.ts";
 import { jsonError } from "../_shared/errors.ts";
 import { writeAuditLog } from "../_shared/audit.ts";
@@ -7,13 +8,8 @@ Deno.serve(async (req: Request) => {
   if (cors) return cors;
   if (req.method !== "POST") return withCors(req, jsonError("VALIDATION_ERROR" as any, "POST required", 405));
   try {
-    const auth = req.headers.get("authorization") ?? "";
-    const m = auth.match(/^Bearer\s+(.+)$/i);
-    if (!m) return withCors(req, jsonError("UNAUTHORIZED" as any, "Missing token", 401));
-    const jwt = m[1];
+    const { user } = await requireAdmin(req, "withdrawal.review");
     const admin = createAdminClient();
-    const { data: userData } = await admin.auth.getUser(jwt);
-    if (!userData?.user) return withCors(req, jsonError("UNAUTHORIZED" as any, "Invalid token", 401));
     const body = await req.json();
     const id = body.id ?? body.withdrawal_id;
     const reason = body.reason ?? body.reject_reason;
@@ -22,12 +18,12 @@ Deno.serve(async (req: Request) => {
     if (!wd) return withCors(req, jsonError("NOT_FOUND" as any, "Not found", 404));
     if (!["pending_review","approved"].includes(wd.status)) return withCors(req, jsonError("CONFLICT" as any, "Invalid status", 409));
     const key = `withdraw_rejected:${id}`;
-    await admin.rpc("wallet_release", { p_profile_id: wd.profile_id, p_amount: wd.amount_coins, p_type: "withdrawal_returned", p_reference_type: "withdrawal", p_reference_id: id, p_idempotency_key: key, p_created_by: userData.user.id } as any);
+    await admin.rpc("wallet_release", { p_profile_id: wd.profile_id, p_amount: wd.amount_coins, p_type: "withdrawal_returned", p_reference_type: "withdrawal", p_reference_id: id, p_idempotency_key: key, p_created_by: user.id } as any);
     await admin.schema("app").from("withdrawal_requests").update({ status: "rejected", reject_reason: reason, updated_at: new Date().toISOString() }).eq("id", id);
     await admin.schema("app").from("notifications").insert({ profile_id: wd.profile_id, type: "withdrawal_update", title: "Withdrawal Rejected", body: reason, data: { withdrawal_id: id }, deep_link: `rushzone://wallet` } as any);
-    await writeAuditLog({ actorId: userData.user.id, action: "withdrawal.reject", entityType: "withdrawal", entityId: id, reason });
+    await writeAuditLog({ actorId: user.id, action: "withdrawal.reject", entityType: "withdrawal", entityId: id, reason });
     return withCors(req, new Response(JSON.stringify({ ok: true }), { headers: { "Content-Type": "application/json", ...corsHeaders(req) } }));
   } catch (e) {
-    return withCors(req, jsonError("INTERNAL" as any, String(e), 500));
+    return withCors(req, e instanceof Response ? e : jsonError("INTERNAL" as any, String(e), 500));
   }
 });

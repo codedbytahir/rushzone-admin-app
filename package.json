@@ -10,6 +10,7 @@
     "web": "expo start --web",
     "lint": "eslint . --ext .ts,.tsx",
     "typecheck": "tsc --noEmit",
+    "typecheck:functions": "tsc -p tsconfig.deno.json",
     "gen:types": "supabase gen types typescript --local > types/database.types.ts",
     "supabase:start": "supabase start",
     "supabase:db:reset": "supabase db reset",

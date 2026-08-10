@@ -1,4 +1,4 @@
-import { handleCors, withCors } from "../_shared/cors.ts";
+import { handleCors, withCors, corsHeaders } from "../_shared/cors.ts";
 import { createAdminClient } from "../_shared/supabase.ts";
 import { jsonError } from "../_shared/errors.ts";
 Deno.serve(async (req: Request) => {
@@ -9,7 +9,7 @@ Deno.serve(async (req: Request) => {
     const provider = url.searchParams.get("provider") ?? "admob";
     const body = await req.json().catch(async ()=> {
       const t = await req.text();
-      try { return JSON.parse(t); } catch { return Object.fromEntries(new URLSearchParams(t)); }
+      try { return JSON.parse(t); } catch { const out: Record<string, string> = {}; for (const pair of t.split("&")) { const [k, v] = pair.split("="); if (k) out[decodeURIComponent(k.replace(/\+/g, " "))] = decodeURIComponent((v ?? "").replace(/\+/g, " ")); } return out; }
     });
     const token = body.ad_token ?? body.token ?? body.custom_data ?? url.searchParams.get("custom_data") ?? url.searchParams.get("token");
     const sig = body.signature ?? body.sig ?? url.searchParams.get("signature") ?? req.headers.get("x-ad-signature") ?? "";
@@ -49,7 +49,7 @@ Deno.serve(async (req: Request) => {
       }
     }
     const { data: inserted } = await admin.schema("app").from("reward_attempts").insert({ campaign_id: campaignId, profile_id: profileId, source: "ad", ad_provider: provider, ad_token: token ?? null, item_id: itemId, coins_won: coins, ledger_id: ledgerId, idempotency_key: `ad:${attemptId ?? crypto.randomUUID()}` }).select("id").single();
-    return withCors(req, new Response(JSON.stringify({ ok: true, attempt_id: inserted?.id, coins_won: coins }), { headers: { "Content-Type": "application/json", ...handleCors(req) ?? {} } }));
+    return withCors(req, new Response(JSON.stringify({ ok: true, attempt_id: inserted?.id, coins_won: coins }), { headers: { "Content-Type": "application/json", ...corsHeaders(req) } }));
   } catch (e) {
     return withCors(req, jsonError("INTERNAL" as any, String(e), 500));
   }

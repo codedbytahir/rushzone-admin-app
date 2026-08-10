@@ -5,6 +5,8 @@
 -- 1. Permissions
 insert into admin.permissions (key, name) values
   ('tournament.create', 'Create Tournament'),
+  ('tournament.view', 'View Tournaments & Entrants'),
+  ('tournament.roster', 'Assign Internal Rosters'),
   ('tournament.publish', 'Publish Tournament'),
   ('tournament.cancel', 'Cancel Tournament'),
   ('room.release', 'Release Room Credentials'),
@@ -53,12 +55,12 @@ begin
   -- Tournament Management
   insert into admin.role_permissions (role_id, permission_id)
   select r.id, p.id from admin.roles r, admin.permissions p
-  where r.key='tournament_manager' and p.key in ('tournament.create','tournament.publish','tournament.cancel','reports.view')
+  where r.key='tournament_manager' and p.key in ('tournament.create','tournament.view','tournament.roster','tournament.publish','tournament.cancel','reports.view')
   on conflict do nothing;
 
   insert into admin.role_permissions (role_id, permission_id)
   select r.id, p.id from admin.roles r, admin.permissions p
-  where r.key='room_ops' and p.key in ('room.manage','room.release','reports.view')
+  where r.key='room_ops' and p.key in ('room.manage','room.release','tournament.view','tournament.roster','reports.view')
   on conflict do nothing;
 
   insert into admin.role_permissions (role_id, permission_id)

@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 
+export type PolicyLink = { id: string; label: string; url: string };
 type Policies = { terms: string; privacy: string; tournament_rules: string; wallet: string; rewards: string };
 export type AppConfig = {
   policies: Policies;
+  policy_links: PolicyLink[];
   landing_page_url: string;
   home_page_url: string;
   about_app_url: string;

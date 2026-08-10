@@ -1,4 +1,5 @@
 import { handleCors, corsHeaders, withCors } from "../_shared/cors.ts";
+import { requireAdmin } from "../_shared/auth.ts";
 import { createAdminClient } from "../_shared/supabase.ts";
 import { jsonError } from "../_shared/errors.ts";
 import { writeAuditLog } from "../_shared/audit.ts";
@@ -6,14 +7,9 @@ Deno.serve(async (req: Request) => {
   const cors = handleCors(req);
   if (cors) return cors;
   try {
-    const auth = req.headers.get("authorization") ?? "";
-    const m = auth.match(/^Bearer\s+(.+)$/i);
-    if (!m) return withCors(req, jsonError("UNAUTHORIZED" as any, "Missing token", 401));
-    const jwt = m[1];
+    const { user } = await requireAdmin(req, "rewards.manage");
     const admin = createAdminClient();
-    const { data: userData } = await admin.auth.getUser(jwt);
-    if (!userData?.user) return withCors(req, jsonError("UNAUTHORIZED" as any, "Invalid token", 401));
-    const { data: caller } = await admin.schema("admin").from("assignments").select("id, status").eq("user_id", userData.user.id).maybeSingle();
+    const { data: caller } = await admin.schema("admin").from("assignments").select("id, status").eq("user_id", user.id).maybeSingle();
     if (!caller || caller.status !== "active") return withCors(req, jsonError("FORBIDDEN" as any, "Admin only", 403));
     const url = new URL(req.url);
     if (req.method === "GET") {
@@ -30,14 +26,14 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     const action = body.action ?? (url.searchParams.get("action") ?? "create");
     if (action === "create") {
-      const row = { name: body.name, status: body.status ?? "active", starts_at: body.starts_at ?? null, ends_at: body.ends_at ?? null, ad_enabled: body.ad_enabled ?? true, paid_enabled: body.paid_enabled ?? true, paid_cost: body.paid_cost ?? 5, daily_cap: body.daily_cap ?? null, cooldown_secs: body.cooldown_secs ?? 0, global_cap: body.global_cap ?? null, created_by: userData.user.id };
+      const row = { name: body.name, status: body.status ?? "active", starts_at: body.starts_at ?? null, ends_at: body.ends_at ?? null, ad_enabled: body.ad_enabled ?? true, paid_enabled: body.paid_enabled ?? true, paid_cost: body.paid_cost ?? 5, daily_cap: body.daily_cap ?? null, cooldown_secs: body.cooldown_secs ?? 0, global_cap: body.global_cap ?? null, created_by: user.id };
       if (!row.name) return withCors(req, jsonError("VALIDATION_ERROR" as any, "name required", 400));
       const { data: camp, error } = await admin.schema("app").from("reward_campaigns").insert(row).select("id").single();
       if (error) return withCors(req, jsonError("INTERNAL" as any, error.message, 500));
       if (Array.isArray(body.items)) {
         for (const it of body.items) await admin.schema("app").from("reward_items").insert({ campaign_id: camp.id, coins: it.coins, weight: it.weight });
       }
-      await writeAuditLog({ actorId: userData.user.id, action: "reward.campaign.create", entityType: "campaign", entityId: camp.id });
+      await writeAuditLog({ actorId: user.id, action: "reward.campaign.create", entityType: "campaign", entityId: camp.id });
       return withCors(req, new Response(JSON.stringify({ ok: true, id: camp.id }), { headers: { "Content-Type": "application/json", ...corsHeaders(req) } }));
     }
     if (action === "update") {
@@ -51,17 +47,17 @@ Deno.serve(async (req: Request) => {
         await admin.schema("app").from("reward_items").delete().eq("campaign_id", id);
         for (const it of body.items) await admin.schema("app").from("reward_items").insert({ campaign_id: id, coins: it.coins, weight: it.weight });
       }
-      await writeAuditLog({ actorId: userData.user.id, action: "reward.campaign.update", entityType: "campaign", entityId: id, after: upd });
+      await writeAuditLog({ actorId: user.id, action: "reward.campaign.update", entityType: "campaign", entityId: id, after: upd });
       return withCors(req, new Response(JSON.stringify({ ok: true }), { headers: { "Content-Type": "application/json", ...corsHeaders(req) } }));
     }
     if (action === "pause") {
       const id = body.id ?? body.campaign_id;
       await admin.schema("app").from("reward_campaigns").update({ status: "paused" }).eq("id", id);
-      await writeAuditLog({ actorId: userData.user.id, action: "reward.campaign.pause", entityType: "campaign", entityId: id });
+      await writeAuditLog({ actorId: user.id, action: "reward.campaign.pause", entityType: "campaign", entityId: id });
       return withCors(req, new Response(JSON.stringify({ ok: true }), { headers: { "Content-Type": "application/json", ...corsHeaders(req) } }));
     }
     return withCors(req, jsonError("VALIDATION_ERROR" as any, "Unknown action", 400));
   } catch (e) {
-    return withCors(req, jsonError("INTERNAL" as any, String(e), 500));
+    return withCors(req, e instanceof Response ? e : jsonError("INTERNAL" as any, String(e), 500));
   }
 });

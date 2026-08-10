@@ -1,22 +1,18 @@
 import { handleCors, corsHeaders, withCors } from "../_shared/cors.ts";
+import { requireOwner } from "../_shared/auth.ts";
 import { createAdminClient } from "../_shared/supabase.ts";
 import { jsonError } from "../_shared/errors.ts";
 Deno.serve(async (req: Request) => {
   const cors = handleCors(req);
   if (cors) return cors;
   try {
-    const auth = req.headers.get("authorization") ?? "";
-    const m = auth.match(/^Bearer\s+(.+)$/i);
-    if (!m) return withCors(req, jsonError("UNAUTHORIZED" as any, "Missing token", 401));
-    const jwt = m[1];
+    const { user } = await requireOwner(req);
     const admin = createAdminClient();
-    const { data: userData } = await admin.auth.getUser(jwt);
-    if (!userData?.user) return withCors(req, jsonError("UNAUTHORIZED" as any, "Invalid token", 401));
-    const { data: caller } = await admin.schema("admin").from("assignments").select("id, is_owner, status").eq("user_id", userData.user.id).maybeSingle();
+    const { data: caller } = await admin.schema("admin").from("assignments").select("id, is_owner, status").eq("user_id", user.id).maybeSingle();
     if (!caller?.is_owner || caller.status !== "active") return withCors(req, jsonError("FORBIDDEN" as any, "Owner only", 403));
     const url = new URL(req.url);
     const status = url.searchParams.get("status");
-    let q = admin.schema("admin").from("assignments").select("id, user_id, status, is_owner, created_at").order("created_at", { ascending: false });
+    let q = admin.schema("admin").from("assignments").select("id, user_id, status, is_owner, created_at, requested_role").order("created_at", { ascending: false });
     if (status) q = q.eq("status", status);
     const { data: list, error } = await q;
     if (error) return withCors(req, jsonError("INTERNAL" as any, error.message, 500));
@@ -38,9 +34,31 @@ Deno.serve(async (req: Request) => {
         if (roleLookup[a.role_id]) rolesMap[a.assignment_id].push(roleLookup[a.role_id]);
       }
     }
-    const enriched = (list ?? []).map((a: any)=> ({ ...a, credential: credMap[a.id] ?? null, roles: rolesMap[a.id] ?? [] }));
+    // Effective permission keys per assignment (via the RBAC view) for accurate prefill.
+    let permMap: Record<string, string[]> = {};
+    try {
+      const { data: pv } = await admin.schema("admin").from("assignment_permissions").select("assignment_id, permission_keys");
+      for (const r of (pv ?? [])) permMap[r.assignment_id] = (r.permission_keys ?? "").split(",").filter(Boolean);
+    } catch { /* best-effort */ }
+    const enriched = (list ?? []).map((a: any)=> ({ ...a, credential: credMap[a.id] ?? null, roles: rolesMap[a.id] ?? [], permissions: permMap[a.id] ?? [] }));
+
+    // Enrich with emails (owner-facing list only).
+    let emailMap: Record<string, string> = {};
+    try {
+      const uidSet = new Set<string>();
+      for (const r of (list ?? [])) { const uid = (r as any)?.user_id; if (typeof uid === 'string' && uid) uidSet.add(uid); }
+      const uids = Array.from(uidSet);
+      if (uids.length) {
+        const { data: users } = await admin.auth.admin.listUsers({ perPage: 1000 });
+        const userList = ((users as any)?.users ?? []) as Array<{ id: string; email?: string | null }>;
+        const byId = new Map<string, string>(userList.map((u) => [u.id, u.email ?? '']));
+        for (const uid of uids) emailMap[uid] = byId.get(uid) ?? '';
+      }
+    } catch { /* email enrichment is best-effort */ }
+    const out = enriched.map((a: any)=> ({ ...a, email: emailMap[a.user_id] ?? a.email ?? null }));
+    return withCors(req, new Response(JSON.stringify({ data: out }), { headers: { "Content-Type": "application/json", ...corsHeaders(req) } }));
     return withCors(req, new Response(JSON.stringify({ data: enriched }), { headers: { "Content-Type": "application/json", ...corsHeaders(req) } }));
   } catch (e) {
-    return withCors(req, jsonError("INTERNAL" as any, String(e), 500));
+    return withCors(req, e instanceof Response ? e : jsonError("INTERNAL" as any, String(e), 500));
   }
 });

@@ -1,22 +1,23 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, TextInput, Modal, ScrollView, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, Pressable, TextInput, Modal, ScrollView, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../../src/components/ScreenContainer';
 import { tokens } from '../../src/theme/tokens';
 import { api } from '../../src/lib/api';
+import { Card, ScreenHeader, StatusBadge, EmptyState, AppButton, Row, FieldLabel, Avatar, statusTone } from '../../src/components/ui';
+import type { PlayerSearchResult, PlayerDetail } from '../../src/types/api';
 
 export default function PlayersScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
-  const [players, setPlayers] = useState<any[]>([]);
+  const [players, setPlayers] = useState<PlayerSearchResult[]>([]);
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Player Detail & Moderation State
-  const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
+  const [selectedPlayer, setSelectedPlayer] = useState<PlayerDetail | null>(null);
   const [loadingPlayer, setLoadingPlayer] = useState(false);
   const [activeModal, setActiveModal] = useState<'detail' | 'note' | 'restrict' | null>(null);
 
-  // Forms
   const [noteText, setNoteText] = useState('');
   const [restrictType, setRestrictType] = useState<'entry' | 'rewards' | 'wallet' | 'suspend' | 'ban'>('suspend');
   const [restrictReason, setRestrictReason] = useState('');
@@ -106,32 +107,28 @@ export default function PlayersScreen() {
 
   return (
     <ScreenContainer scrollable>
-      {/* Search Header */}
-      <View style={styles.topBar}>
-        <Text style={styles.screenTitle}>Player Search & Moderation</Text>
-        <Text style={styles.screenSubtitle}>Search players by name, phone, or UID to inspect stats, add internal notes, and manage bans/restrictions</Text>
-      </View>
+      <ScreenHeader
+        title="Player Search & Moderation"
+        subtitle="Search players by name, phone, or UID to inspect stats, add internal notes, and manage restrictions"
+      />
 
-      <View style={styles.searchCard}>
-        <Text style={styles.cardLabel}>Player Query</Text>
+      <Card style={{ gap: tokens.space.sm }}>
+        <FieldLabel>Player query</FieldLabel>
         <View style={styles.searchRow}>
-          <TextInput
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Search by display name, WhatsApp, App UID, FF UID..."
-            placeholderTextColor={tokens.color.disabled}
-            onSubmitEditing={handleSearch}
-            style={styles.searchInput}
-          />
-          <Pressable style={styles.searchBtn} onPress={handleSearch} disabled={searching}>
-            {searching ? (
-              <ActivityIndicator color="white" size="small" />
-            ) : (
-              <Text style={styles.searchBtnText}>Search</Text>
-            )}
-          </Pressable>
+          <View style={styles.searchBox}>
+            <Ionicons name="search" size={16} color={tokens.color.disabled} style={{ position: 'absolute', left: 12, zIndex: 1 }} />
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search by display name, WhatsApp, App UID, FF UID…"
+              placeholderTextColor={tokens.color.disabled}
+              onSubmitEditing={handleSearch}
+              style={styles.searchInput}
+            />
+          </View>
+          <AppButton label="Search" icon="search-outline" loading={searching} onPress={handleSearch} />
         </View>
-      </View>
+      </Card>
 
       {error && (
         <View style={styles.errorBox}>
@@ -139,59 +136,37 @@ export default function PlayersScreen() {
         </View>
       )}
 
-      {/* Results List */}
       {searched && (
         <View style={styles.resultsSection}>
-          <Text style={styles.sectionTitle}>
-            Search Results ({players.length})
-          </Text>
-
+          <Text style={styles.sectionTitle}>Search results ({players.length})</Text>
           {players.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>No Players Found</Text>
-              <Text style={styles.emptySubtitle}>Try searching with a different name, phone, or ID</Text>
-            </View>
+            <Card>
+              <EmptyState icon="person-outline" title="No players found" subtitle="Try searching with a different name, phone, or ID" />
+            </Card>
           ) : (
             <View style={styles.playersGrid}>
               {players.map((p) => (
-                <View key={p.id} style={styles.playerCard}>
-                  <View style={styles.cardMain}>
-                    <View style={styles.avatarCircle}>
-                      <Text style={styles.avatarText}>{(p.display_name ?? 'P')[0]?.toUpperCase()}</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.playerName}>{p.display_name ?? 'Unnamed Player'}</Text>
-                      <Text style={styles.playerId}>ID: {p.id}</Text>
-                      <Text style={styles.playerPhone}>Phone: {p.whatsapp_phone_masked ?? 'Hidden / Masked'}</Text>
-                    </View>
-                    <View
-                      style={[
-                        styles.statusBadge,
-                        {
-                          backgroundColor:
-                            p.status === 'banned' || p.status === 'suspended'
-                              ? '#FFEBEE'
-                              : p.status === 'restricted'
-                              ? tokens.color.creamPanel
-                              : '#E8F5E9',
-                        },
-                      ]}
-                    >
-                      <Text style={styles.statusBadgeText}>{(p.status ?? 'active').toUpperCase()}</Text>
-                    </View>
-                  </View>
-
-                  <Pressable style={styles.inspectBtn} onPress={() => openPlayerDetail(p.id)}>
-                    <Text style={styles.inspectBtnText}>Inspect & Moderate →</Text>
-                  </Pressable>
-                </View>
+                <Card key={p.id} style={{ gap: tokens.space.sm }}>
+                  <Row style={{ justifyContent: 'space-between' }}>
+                    <Row style={{ flex: 1, gap: tokens.space.md }}>
+                      <Avatar name={p.display_name} size={44} />
+                      <View style={{ flex: 1, gap: 2 }}>
+                        <Text style={styles.playerName}>{p.display_name ?? 'Unnamed Player'}</Text>
+                        <Text style={styles.playerMeta}>ID: {p.id}</Text>
+                        <Text style={styles.playerMeta}>Phone: {p.whatsapp_phone_masked ?? 'Hidden / masked'}</Text>
+                      </View>
+                    </Row>
+                    <StatusBadge label={p.status ?? 'active'} tone={statusTone(p.status)} />
+                  </Row>
+                  <AppButton variant="outline" label="Inspect & Moderate" icon="search-outline" onPress={() => openPlayerDetail(p.id)} />
+                </Card>
               ))}
             </View>
           )}
         </View>
       )}
 
-      {/* Modal: Player Detail & Moderation */}
+      {/* Modal: Player detail */}
       <Modal visible={activeModal === 'detail'} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCardLarge}>
@@ -199,65 +174,63 @@ export default function PlayersScreen() {
               <ActivityIndicator color={tokens.color.primary} size="large" style={{ marginVertical: 32 }} />
             ) : selectedPlayer ? (
               <ScrollView style={{ maxHeight: 500 }}>
-                {/* Header Info */}
                 <View style={styles.profileHeader}>
-                  <Text style={styles.modalTitle}>{selectedPlayer.profile?.display_name ?? 'Player Detail'}</Text>
-                  <Text style={styles.modalSubtitle}>ID: {selectedPlayer.profile?.id}</Text>
-                  <Text style={styles.modalSubtitle}>Phone: {selectedPlayer.whatsapp_phone_masked ?? 'Masked'}</Text>
+                  <Row style={{ gap: tokens.space.md }}>
+                    <Avatar name={selectedPlayer.profile?.display_name} size={52} />
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <Text style={styles.modalTitle}>{selectedPlayer.profile?.display_name ?? 'Player Detail'}</Text>
+                      <Text style={styles.modalSubtitle}>ID: {selectedPlayer.profile?.id}</Text>
+                      <Text style={styles.modalSubtitle}>Phone: {selectedPlayer.profile?.whatsapp_phone_masked ?? 'Masked'}</Text>
+                    </View>
+                  </Row>
                 </View>
 
-                {/* Stats & Wallet */}
                 <View style={styles.statsRow}>
                   <View style={styles.statBox}>
-                    <Text style={styles.statLabel}>Main Wallet</Text>
-                    <Text style={styles.statValue}>🪙 {selectedPlayer.wallet?.balance ?? 0}</Text>
+                    <Text style={styles.statLabel}>Main wallet</Text>
+                    <Text style={styles.statValue}>{selectedPlayer.wallet?.balances?.available_balance ?? 0}</Text>
                   </View>
                   <View style={styles.statBox}>
-                    <Text style={styles.statLabel}>Held Wallet</Text>
-                    <Text style={styles.statValue}>🪙 {selectedPlayer.wallet?.held_balance ?? 0}</Text>
+                    <Text style={styles.statLabel}>Held wallet</Text>
+                    <Text style={styles.statValue}>{selectedPlayer.wallet?.balances?.held_balance ?? 0}</Text>
                   </View>
                   <View style={styles.statBox}>
-                    <Text style={styles.statLabel}>Total Matches</Text>
-                    <Text style={styles.statValue}>{selectedPlayer.profile_stats?.total_matches ?? 0}</Text>
+                    <Text style={styles.statLabel}>Tournaments</Text>
+                    <Text style={styles.statValue}>{selectedPlayer.stats?.tournaments_joined ?? 0}</Text>
                   </View>
                   <View style={styles.statBox}>
                     <Text style={styles.statLabel}>Wins</Text>
-                    <Text style={styles.statValue}>{selectedPlayer.profile_stats?.total_wins ?? 0}</Text>
+                    <Text style={styles.statValue}>{selectedPlayer.stats?.wins ?? 0}</Text>
                   </View>
                 </View>
 
-                {/* Moderation Controls */}
                 <View style={styles.moderationRow}>
-                  <Pressable
-                    style={[styles.modBtn, { backgroundColor: tokens.color.danger }]}
+                  <AppButton
+                    label="Restrict / Ban"
+                    variant="danger"
+                    icon="ban-outline"
                     onPress={() => setActiveModal('restrict')}
-                  >
-                    <Text style={styles.modBtnText}>Restrict / Ban Player</Text>
-                  </Pressable>
-
+                  />
                   {selectedPlayer.profile?.status !== 'active' && (
-                    <Pressable
-                      style={[styles.modBtn, { backgroundColor: tokens.color.success }]}
+                    <AppButton
+                      label="Lift Restriction"
+                      icon="checkmark-circle-outline"
                       onPress={() => handleRestrictPlayer(true)}
-                    >
-                      <Text style={styles.modBtnText}>Lift Restriction (Unban)</Text>
-                    </Pressable>
+                    />
                   )}
-
-                  <Pressable
-                    style={[styles.modBtn, { backgroundColor: tokens.color.ink }]}
+                  <AppButton
+                    label="Add Internal Note"
+                    variant="secondary"
+                    icon="add-circle-outline"
                     onPress={() => setActiveModal('note')}
-                  >
-                    <Text style={styles.modBtnText}>+ Add Internal Note</Text>
-                  </Pressable>
+                  />
                 </View>
 
-                {/* Internal Notes Feed */}
-                <Text style={styles.subSectionTitle}>Internal Staff Notes</Text>
-                {(!selectedPlayer.internal_notes || selectedPlayer.internal_notes.length === 0) ? (
+                <Text style={styles.subSectionTitle}>Internal staff notes</Text>
+                {(!selectedPlayer.notes || selectedPlayer.notes.length === 0) ? (
                   <Text style={styles.emptyFeedText}>No internal notes for this player yet.</Text>
                 ) : (
-                  selectedPlayer.internal_notes.map((n: any, idx: number) => (
+                  selectedPlayer.notes.map((n: any, idx: number) => (
                     <View key={idx} style={styles.noteBox}>
                       <Text style={styles.noteBody}>{n.body}</Text>
                       <Text style={styles.noteMeta}>By: {n.author_id ?? 'Staff'} · {n.created_at?.substring(0, 10)}</Text>
@@ -267,48 +240,43 @@ export default function PlayersScreen() {
               </ScrollView>
             ) : null}
 
-            <Pressable style={styles.modalCancelBtn} onPress={() => setActiveModal(null)}>
-              <Text style={styles.modalCancelText}>Close</Text>
-            </Pressable>
+            <AppButton variant="ghost" label="Close" onPress={() => setActiveModal(null)} />
           </View>
         </View>
       </Modal>
 
-      {/* Modal: Add Note */}
+      {/* Modal: Add note */}
       <Modal visible={activeModal === 'note'} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Add Internal Staff Note</Text>
-            <Text style={styles.modalSubtitle}>This note is visible ONLY to Rush Zone admins.</Text>
+            <Text style={styles.modalSubtitle}>Visible only to Rush Zone admins.</Text>
 
             <TextInput
               value={noteText}
               onChangeText={setNoteText}
               placeholder="e.g. Verified WhatsApp identity manually on 2026-08-09."
+              placeholderTextColor={tokens.color.disabled}
               multiline
               numberOfLines={4}
               style={[styles.modalInput, { height: 100, textAlignVertical: 'top' }]}
             />
 
             <View style={styles.modalBtnRow}>
-              <Pressable style={styles.modalCancelBtn} onPress={() => setActiveModal('detail')}>
-                <Text style={styles.modalCancelText}>Back</Text>
-              </Pressable>
-              <Pressable style={styles.modalSubmitBtn} onPress={handleAddNote} disabled={processing}>
-                {processing ? <ActivityIndicator color="white" /> : <Text style={styles.modalSubmitText}>Save Note</Text>}
-              </Pressable>
+              <AppButton variant="ghost" label="Back" onPress={() => setActiveModal('detail')} />
+              <AppButton label="Save Note" icon="save-outline" loading={processing} onPress={handleAddNote} />
             </View>
           </View>
         </View>
       </Modal>
 
-      {/* Modal: Restrict / Ban */}
+      {/* Modal: Restrict */}
       <Modal visible={activeModal === 'restrict'} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <Text style={[styles.modalTitle, { color: tokens.color.danger }]}>Restrict / Ban Player</Text>
 
-            <Text style={styles.inputLabel}>Restriction Type</Text>
+            <FieldLabel>Restriction type</FieldLabel>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginVertical: 6 }}>
               {(['suspend', 'ban', 'entry', 'rewards', 'wallet'] as const).map((t) => (
                 <Pressable
@@ -323,21 +291,18 @@ export default function PlayersScreen() {
               ))}
             </View>
 
-            <Text style={styles.inputLabel}>Reason (required min 5 chars)</Text>
+            <FieldLabel>Reason (min 5 chars)</FieldLabel>
             <TextInput
               value={restrictReason}
               onChangeText={setRestrictReason}
               placeholder="e.g. Multiple account registration violation"
+              placeholderTextColor={tokens.color.disabled}
               style={styles.modalInput}
             />
 
             <View style={styles.modalBtnRow}>
-              <Pressable style={styles.modalCancelBtn} onPress={() => setActiveModal('detail')}>
-                <Text style={styles.modalCancelText}>Back</Text>
-              </Pressable>
-              <Pressable style={[styles.modalSubmitBtn, { backgroundColor: tokens.color.danger }]} onPress={() => handleRestrictPlayer(false)} disabled={processing}>
-                {processing ? <ActivityIndicator color="white" /> : <Text style={styles.modalSubmitText}>Apply Restriction</Text>}
-              </Pressable>
+              <AppButton variant="ghost" label="Back" onPress={() => setActiveModal('detail')} />
+              <AppButton label="Apply Restriction" variant="danger" icon="ban-outline" loading={processing} onPress={() => handleRestrictPlayer(false)} />
             </View>
           </View>
         </View>
@@ -347,170 +312,29 @@ export default function PlayersScreen() {
 }
 
 const styles = StyleSheet.create({
-  topBar: {
-    gap: 4,
-  },
-  screenTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: tokens.color.ink,
-  },
-  screenSubtitle: {
-    fontSize: 13,
-    color: tokens.color.secondary,
-  },
-  searchCard: {
-    backgroundColor: tokens.color.surface,
-    borderRadius: tokens.radius.card,
-    padding: tokens.space.md,
-    borderWidth: 1,
-    borderColor: tokens.color.border,
-    gap: tokens.space.xs,
-  },
-  cardLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: tokens.color.ink,
-  },
-  searchRow: {
-    flexDirection: 'row',
-    gap: tokens.space.sm,
-    marginTop: 4,
-  },
+  searchRow: { flexDirection: 'row', gap: tokens.space.sm },
+  searchBox: { flex: 1, justifyContent: 'center' },
   searchInput: {
-    flex: 1,
     backgroundColor: tokens.color.canvas,
     borderWidth: 1,
     borderColor: tokens.color.border,
     borderRadius: tokens.radius.input,
-    paddingHorizontal: 12,
+    paddingLeft: 36,
+    paddingRight: 12,
     paddingVertical: 10,
     fontSize: 14,
     color: tokens.color.ink,
   },
-  searchBtn: {
-    backgroundColor: tokens.color.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: tokens.radius.button,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  searchBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  errorBox: {
-    backgroundColor: '#FFEBEE',
-    borderWidth: 1,
-    borderColor: tokens.color.danger,
-    borderRadius: tokens.radius.card,
-    padding: tokens.space.md,
-  },
-  errorText: {
-    color: tokens.color.danger,
-    fontWeight: '600',
-  },
-  resultsSection: {
-    gap: tokens.space.sm,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: tokens.color.ink,
-  },
-  emptyCard: {
-    backgroundColor: tokens.color.surface,
-    borderRadius: tokens.radius.card,
-    padding: tokens.space.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: tokens.color.border,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: tokens.color.ink,
-  },
-  emptySubtitle: {
-    fontSize: 13,
-    color: tokens.color.secondary,
-    marginTop: 4,
-  },
-  playersGrid: {
-    gap: tokens.space.sm,
-  },
-  playerCard: {
-    backgroundColor: tokens.color.surface,
-    borderRadius: tokens.radius.card,
-    padding: tokens.space.md,
-    borderWidth: 1,
-    borderColor: tokens.color.border,
-    gap: tokens.space.sm,
-  },
-  cardMain: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: tokens.space.sm,
-  },
-  avatarCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: tokens.color.creamPanel,
-    borderWidth: 1,
-    borderColor: tokens.color.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: tokens.color.ink,
-  },
-  playerName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: tokens.color.ink,
-  },
-  playerId: {
-    fontSize: 12,
-    color: tokens.color.secondary,
-  },
-  playerPhone: {
-    fontSize: 12,
-    color: tokens.color.secondary,
-  },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: tokens.radius.pill,
-    borderWidth: 1,
-    borderColor: tokens.color.border,
-  },
-  statusBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: tokens.color.ink,
-  },
-  inspectBtn: {
-    borderWidth: 1,
-    borderColor: tokens.color.border,
-    borderRadius: tokens.radius.button,
-    paddingVertical: 8,
-    alignItems: 'center',
-    backgroundColor: tokens.color.canvas,
-  },
-  inspectBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: tokens.color.ink,
-  },
+  errorBox: { backgroundColor: tokens.color.dangerSoft, borderWidth: 1, borderColor: tokens.color.danger, borderRadius: tokens.radius.card, padding: tokens.space.md },
+  errorText: { color: tokens.color.danger, fontWeight: '600' },
+  resultsSection: { gap: tokens.space.sm },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: tokens.color.ink },
+  playersGrid: { gap: tokens.space.md },
+  playerName: { fontSize: 15, fontWeight: '700', color: tokens.color.ink },
+  playerMeta: { fontSize: 12, color: tokens.color.secondary },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: tokens.color.backdrop,
     alignItems: 'center',
     justifyContent: 'center',
     padding: tokens.space.md,
@@ -520,79 +344,35 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radius.card,
     padding: tokens.space.lg,
     width: '100%',
-    maxWidth: 500,
-    gap: tokens.space.sm,
+    maxWidth: 520,
+    gap: tokens.space.xs,
   },
   modalCardLarge: {
     backgroundColor: tokens.color.surface,
     borderRadius: tokens.radius.card,
     padding: tokens.space.lg,
     width: '100%',
-    maxWidth: 600,
+    maxWidth: 620,
     gap: tokens.space.md,
   },
-  profileHeader: {
-    gap: 2,
-    marginBottom: tokens.space.sm,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: tokens.color.ink,
-  },
-  modalSubtitle: {
-    fontSize: 13,
-    color: tokens.color.secondary,
-  },
+  profileHeader: { gap: 2, marginBottom: tokens.space.sm },
+  modalTitle: { fontSize: 19, fontWeight: '800', color: tokens.color.ink, letterSpacing: -0.3 },
+  modalSubtitle: { fontSize: 13, color: tokens.color.secondary },
   statsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: tokens.space.xs,
+    gap: tokens.space.sm,
     backgroundColor: tokens.color.canvas,
-    padding: tokens.space.sm,
+    padding: tokens.space.md,
     borderRadius: tokens.radius.input,
-    marginBottom: tokens.space.sm,
-  },
-  statBox: {
-    flex: 1,
-    minWidth: 110,
-  },
-  statLabel: {
-    fontSize: 11,
-    color: tokens.color.secondary,
-  },
-  statValue: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: tokens.color.ink,
-  },
-  moderationRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: tokens.space.xs,
     marginBottom: tokens.space.md,
   },
-  modBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: tokens.radius.button,
-  },
-  modBtnText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  subSectionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: tokens.color.ink,
-    marginBottom: 6,
-  },
-  emptyFeedText: {
-    fontSize: 13,
-    color: tokens.color.secondary,
-    fontStyle: 'italic',
-  },
+  statBox: { flex: 1, minWidth: 110, gap: 2 },
+  statLabel: { fontSize: 11, color: tokens.color.secondary, textTransform: 'uppercase', letterSpacing: 0.4 },
+  statValue: { fontSize: 14, fontWeight: '700', color: tokens.color.ink, fontVariant: ['tabular-nums'] },
+  moderationRow: { flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space.sm, marginBottom: tokens.space.md },
+  subSectionTitle: { fontSize: 14, fontWeight: '700', color: tokens.color.ink, marginBottom: 6 },
+  emptyFeedText: { fontSize: 13, color: tokens.color.secondary, fontStyle: 'italic' },
   noteBox: {
     backgroundColor: tokens.color.canvas,
     borderRadius: tokens.radius.input,
@@ -601,21 +381,8 @@ const styles = StyleSheet.create({
     borderColor: tokens.color.border,
     marginBottom: 6,
   },
-  noteBody: {
-    fontSize: 13,
-    color: tokens.color.ink,
-  },
-  noteMeta: {
-    fontSize: 11,
-    color: tokens.color.secondary,
-    marginTop: 4,
-  },
-  inputLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: tokens.color.secondary,
-    marginTop: 4,
-  },
+  noteBody: { fontSize: 13, color: tokens.color.ink },
+  noteMeta: { fontSize: 11, color: tokens.color.secondary, marginTop: 4 },
   modalInput: {
     borderWidth: 1,
     borderColor: tokens.color.border,
@@ -633,43 +400,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: tokens.color.border,
   },
-  typeBadgeActive: {
-    backgroundColor: tokens.color.danger,
-    borderColor: tokens.color.danger,
-  },
-  typeBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: tokens.color.secondary,
-  },
-  typeBadgeTextActive: {
-    color: 'white',
-  },
-  modalBtnRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: tokens.space.sm,
-    marginTop: tokens.space.md,
-  },
-  modalCancelBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: tokens.radius.button,
-    borderWidth: 1,
-    borderColor: tokens.color.border,
-  },
-  modalCancelText: {
-    color: tokens.color.secondary,
-    fontWeight: '600',
-  },
-  modalSubmitBtn: {
-    backgroundColor: tokens.color.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: tokens.radius.button,
-  },
-  modalSubmitText: {
-    color: 'white',
-    fontWeight: '700',
-  },
+  typeBadgeActive: { backgroundColor: tokens.color.danger, borderColor: tokens.color.danger },
+  typeBadgeText: { fontSize: 11, fontWeight: '700', color: tokens.color.secondary },
+  typeBadgeTextActive: { color: tokens.color.onPrimary },
+  modalBtnRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: tokens.space.sm, marginTop: tokens.space.md, flexWrap: 'wrap' },
 });

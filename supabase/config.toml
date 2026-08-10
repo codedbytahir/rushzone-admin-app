@@ -1,3 +1,4 @@
+project_id = "gwtipxyhyalikdaqnvdp"
 # Supabase config for Rush Zone — shared backend
 [api]
 enabled = true

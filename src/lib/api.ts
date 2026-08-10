@@ -1,24 +1,39 @@
 import { supabase, callEdgeFunction } from "./supabase";
+
+// Serialize query params, dropping undefined/null/empty values so URLs never
+// end up with ?status=undefined&q=undefined.
+function queryString(params?: Record<string, any>): string {
+  if (!params) return "";
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null && v !== "") q.set(k, String(v));
+  }
+  const s = q.toString();
+  return s ? `?${s}` : "";
+}
+
 export const api = {
   verifySuperKey: async (superKey: string) => {
     const { data: session } = await supabase.auth.getSession();
     return callEdgeFunction<{ ok: boolean; assignment_id: string; is_owner: boolean; permissions: string[] }>("admin-auth-verify", { body: { super_key: superKey }, jwt: session.session?.access_token });
   },
   getMyAssignment: async () => callEdgeFunction<any>("admin-assignments-me"),
+  requestAdminAccess: async (requested_role?: string) => callEdgeFunction<any>("admin-request-access", { body: { requested_role: requested_role ?? "" } }),
+  listPermissions: async () => callEdgeFunction<any>("admin-permissions-list"),
+  updateAdminPermissions: async (assignment_id: string, permission_keys: string[]) => callEdgeFunction<any>("admin-permissions-update", { body: { assignment_id, permission_keys } }),
   bootstrapOwner: async (secret: string) => {
     const { data: session } = await supabase.auth.getSession();
     return fetch(`${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/owner-bootstrap`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.session?.access_token}`, "x-bootstrap-secret": secret }, body: JSON.stringify({ bootstrap_secret: secret }) }).then((r) => r.json());
   },
   listAdmins: async (status?: string) => callEdgeFunction<any>("owner-admins-list" + (status ? `?status=${status}` : "")),
   approveAdmin: async (assignment_id: string, role_keys: string[]) => callEdgeFunction<any>("owner-admins-approve", { body: { assignment_id, role_keys } }),
+  rejectAdmin: async (assignment_id: string) => callEdgeFunction<any>("owner-admins-reject", { body: { assignment_id } }),
   generateKey: async (assignment_id: string) => callEdgeFunction<{ ok: boolean; super_key: string; key_version: number }>("owner-admins-generate-key", { body: { assignment_id } }),
   rotateKey: async (assignment_id: string) => callEdgeFunction<{ ok: boolean; super_key: string }>("owner-admins-rotate-key", { body: { assignment_id } }),
   revokeKey: async (assignment_id: string) => callEdgeFunction<any>("owner-admins-revoke-key", { body: { assignment_id } }),
   revokeSession: async (opts: { session_id?: string; assignment_id?: string }) => callEdgeFunction<any>("owner-admins-revoke-session", { body: opts }),
-  listTournaments: async (params?: { status?: string; q?: string; limit?: number; offset?: number }) => {
-    const q = new URLSearchParams(params as any).toString();
-    return callEdgeFunction<any>(`admin-tournaments-list${q ? `?${q}` : ""}`);
-  },
+  listTournaments: async (params?: { status?: string; q?: string; limit?: number; offset?: number }) =>
+    callEdgeFunction<any>(`admin-tournaments-list${queryString(params)}`),
   createTournament: async (payload: any) => callEdgeFunction<any>("admin-tournaments-create", { body: payload }),
   updateTournament: async (payload: any) => callEdgeFunction<any>("admin-tournaments-update", { body: payload }),
   cancelTournament: async (id: string, reason: string, outcome?: string) => callEdgeFunction<any>("admin-tournaments-cancel", { body: { id, reason, outcome } }),
@@ -36,17 +51,13 @@ export const api = {
   correctResult: async (payload: { result_id: string; kills?: number; placement?: number; points?: number; prize_coins?: number; reason: string }) => callEdgeFunction<any>("admin-results-correct", { body: payload }),
   getRoom: async (tournament_id: string) => callEdgeFunction<any>(`tournaments-room?tournament_id=${tournament_id}`),
   createTopup: async (payload: { method: string; amount_coins: number; reference: string }) => callEdgeFunction<any>("wallet-topup-create", { body: payload }),
-  listTopups: async (params?: { status?: string; method?: string; risk?: string; limit?: number; offset?: number }) => {
-    const q = new URLSearchParams(params as any).toString();
-    return callEdgeFunction<any>(`admin-topups-list${q ? `?${q}` : ""}`);
-  },
+  listTopups: async (params?: { status?: string; method?: string; risk?: string; limit?: number; offset?: number }) =>
+    callEdgeFunction<any>(`admin-topups-list${queryString(params)}`),
   reviewTopup: async (id: string, decision: "approve" | "reject", reason?: string, override?: boolean) => callEdgeFunction<any>("admin-topups-review", { body: { id, decision, reason, override } }),
   createWithdrawal: async (payload: { amount_coins: number; method: string; account: string }) => callEdgeFunction<any>("wallet-withdraw-create", { body: payload }),
   cancelWithdrawal: async (id: string) => callEdgeFunction<any>("wallet-withdraw-cancel", { body: { id } }),
-  listWithdrawals: async (params?: { status?: string; limit?: number; offset?: number }) => {
-    const q = new URLSearchParams(params as any).toString();
-    return callEdgeFunction<any>(`admin-withdrawals-list${q ? `?${q}` : ""}`);
-  },
+  listWithdrawals: async (params?: { status?: string; limit?: number; offset?: number }) =>
+    callEdgeFunction<any>(`admin-withdrawals-list${queryString(params)}`),
   approveWithdrawal: async (id: string) => callEdgeFunction<any>("admin-withdrawals-approve", { body: { id } }),
   markWithdrawalPaid: async (id: string, payout_ref: string, second_reviewer?: string) => callEdgeFunction<any>("admin-withdrawals-mark-paid", { body: { id, payout_ref, second_reviewer } }),
   rejectWithdrawal: async (id: string, reason: string) => callEdgeFunction<any>("admin-withdrawals-reject", { body: { id, reason } }),
@@ -80,13 +91,13 @@ export const api = {
   getFeatured: async () => callEdgeFunction<any>("admin-content-featured"),
   setFeatured: async (tournament_id: string | null) => callEdgeFunction<any>("admin-content-featured", { body: { tournament_id } }),
   sendNotification: async (payload: { title: string; body: string; type?: string; profile_id?: string; tournament_id?: string; broadcast?: boolean; confirm?: boolean; deep_link?: string }) => callEdgeFunction<any>("admin-notifications-send", { body: payload }),
-  queryAudit: async (params?: { action?: string; actor_id?: string; entity_type?: string; limit?: number; offset?: number; since?: string }) => {
-    const q = new URLSearchParams(params as any).toString();
-    return callEdgeFunction<any>(`admin-audit-query${q ? `?${q}` : ""}`);
-  },
+  queryAudit: async (params?: { action?: string; actor_id?: string; entity_type?: string; limit?: number; offset?: number; since?: string }) =>
+    callEdgeFunction<any>(`admin-audit-query${queryString(params)}`),
   getReports: async () => callEdgeFunction<any>("admin-reports"),
   getSettings: async (key?: string) => callEdgeFunction<any>(`admin-settings${key ? `?key=${key}` : ""}`),
   updateSetting: async (key: string, value: any) => callEdgeFunction<any>("admin-settings", { body: { key, value } }),
+  getPolicyLinks: async () => callEdgeFunction<any>("admin-settings?key=policy_links"),
+  savePolicyLinks: async (links: Array<{ id: string; label: string; url: string }>) => callEdgeFunction<any>("admin-settings", { body: { key: "policy_links", value: links } }),
   checkReconciliation: async () => callEdgeFunction<any>("admin-reconciliation"),
   getAppConfig: async () => callEdgeFunction<any>("app-config"),
   registerPushToken: async (token: string, platform?: string) => callEdgeFunction<any>("push-token-register", { body: { token, platform } }),

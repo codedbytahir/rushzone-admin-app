@@ -1,4 +1,5 @@
 import { handleCors, corsHeaders, withCors } from "../_shared/cors.ts";
+import { requireAdmin } from "../_shared/auth.ts";
 import { createAdminClient } from "../_shared/supabase.ts";
 import { jsonError } from "../_shared/errors.ts";
 import { writeAuditLog } from "../_shared/audit.ts";
@@ -7,13 +8,8 @@ Deno.serve(async (req: Request) => {
   if (cors) return cors;
   if (req.method !== "POST") return withCors(req, jsonError("VALIDATION_ERROR" as any, "POST required", 405));
   try {
-    const auth = req.headers.get("authorization") ?? "";
-    const m = auth.match(/^Bearer\s+(.+)$/i);
-    if (!m) return withCors(req, jsonError("UNAUTHORIZED" as any, "Missing token", 401));
-    const jwt = m[1];
+    const { user } = await requireAdmin(req, "tournament.cancel");
     const admin = createAdminClient();
-    const { data: userData } = await admin.auth.getUser(jwt);
-    if (!userData?.user) return withCors(req, jsonError("UNAUTHORIZED" as any, "Invalid token", 401));
     const body = await req.json();
     const id = body.id ?? body.tournament_id;
     const reason = body.reason;
@@ -31,9 +27,9 @@ Deno.serve(async (req: Request) => {
         await admin.schema("app").from("registrations").update({ status: "refunded" }).eq("id", r.id);
       }
     }
-    await writeAuditLog({ actorId: userData.user.id, action: "tournament.cancel", entityType: "tournament", entityId: id, reason, after: { outcome } });
+    await writeAuditLog({ actorId: user.id, action: "tournament.cancel", entityType: "tournament", entityId: id, reason, after: { outcome } });
     return withCors(req, new Response(JSON.stringify({ ok: true }), { headers: { "Content-Type": "application/json", ...corsHeaders(req) } }));
   } catch (e) {
-    return withCors(req, jsonError("INTERNAL" as any, String(e), 500));
+    return withCors(req, e instanceof Response ? e : jsonError("INTERNAL" as any, String(e), 500));
   }
 });

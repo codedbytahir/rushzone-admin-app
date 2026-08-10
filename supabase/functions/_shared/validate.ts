@@ -8,7 +8,7 @@ export const emailSchema = z.string().email().max(254);
 export const phoneE164Schema = z.string().regex(/^\+[1-9]\d{7,14}$/, "E.164 format required, e.g. +923001234567");
 export const ffUidSchema = z.string().min(5).max(32);
 
-export function parseOrThrow<T>(schema: z.ZodType<T>, data: unknown): T {
+export function parseOrThrow<T>(schema: { safeParse(data: unknown): { success: boolean; data?: T; error?: { errors: Array<{ path: Array<string | number>; message: string }> } } }, data: unknown): T {
   const res = schema.safeParse(data);
   if (!res.success) {
     const msg = res.error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join("; ");

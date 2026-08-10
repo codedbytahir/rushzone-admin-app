@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "strict": false,
+    "noEmit": true,
+    "target": "es2022",
+    "module": "esnext",
+    "skipLibCheck": true,
+    "noResolve": true,
+    "allowImportingTsExtensions": true,
+    "lib": ["esnext", "dom"],
+    "types": []
+  },
+  "include": ["deno-ambient.d.ts", "supabase/functions/**/*.ts"]
+}

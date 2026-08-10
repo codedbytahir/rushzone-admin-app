@@ -1,18 +1,14 @@
 import { handleCors, corsHeaders, withCors } from "../_shared/cors.ts";
+import { requireAdmin } from "../_shared/auth.ts";
 import { createAdminClient } from "../_shared/supabase.ts";
 import { jsonError } from "../_shared/errors.ts";
 Deno.serve(async (req: Request) => {
   const cors = handleCors(req);
   if (cors) return cors;
   try {
-    const auth = req.headers.get("authorization") ?? "";
-    const m = auth.match(/^Bearer\s+(.+)$/i);
-    if (!m) return withCors(req, jsonError("UNAUTHORIZED" as any, "Missing token", 401));
-    const jwt = m[1];
+    const { user } = await requireAdmin(req);
     const admin = createAdminClient();
-    const { data: userData } = await admin.auth.getUser(jwt);
-    if (!userData?.user) return withCors(req, jsonError("UNAUTHORIZED" as any, "Invalid token", 401));
-    const userId = userData.user.id;
+    const userId = user.id;
     const { data: assignment } = await admin.schema("admin").from("assignments").select("id, status, is_owner, created_at").eq("user_id", userId).maybeSingle();
     if (!assignment) return withCors(req, jsonError("FORBIDDEN" as any, "No assignment", 403));
     const { data: roles } = await admin.schema("admin").from("assignment_roles").select("role_id").eq("assignment_id", assignment.id);
@@ -32,6 +28,6 @@ Deno.serve(async (req: Request) => {
     const { data: cred } = await admin.schema("admin").from("security_credentials").select("status, key_version, last_used_at, locked_until").eq("assignment_id", assignment.id).maybeSingle();
     return withCors(req, new Response(JSON.stringify({ assignment, cred, roles: roleKeys, permissions, is_owner: assignment.is_owner }), { headers: { "Content-Type": "application/json", ...corsHeaders(req) } }));
   } catch (e) {
-    return withCors(req, jsonError("INTERNAL" as any, String(e), 500));
+    return withCors(req, e instanceof Response ? e : jsonError("INTERNAL" as any, String(e), 500));
   }
 });

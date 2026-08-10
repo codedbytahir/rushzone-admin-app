@@ -58,11 +58,18 @@ export async function callEdgeFunction<T>(
   // (caller should generate UUID v4 for financial/registration mutations)
 
   const functionUrl = `${url}/functions/v1/${functionName}`;
-  const res = await fetch(functionUrl, {
-    method: opts.method ?? (opts.body ? 'POST' : 'GET'),
-    headers,
-    body: opts.body ? JSON.stringify(opts.body) : undefined,
-  });
+  let res: Response;
+  try {
+    res = await fetch(functionUrl, {
+      method: opts.method ?? (opts.body ? 'POST' : 'GET'),
+      headers,
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
+  } catch (e: any) {
+    // Network failure / CORS block — return a structured error instead of
+    // throwing so callers never surface an unhandled promise rejection.
+    return { data: null, error: { code: 'NETWORK_ERROR', message: e?.message ?? 'Network request failed', retryable: true } };
+  }
 
   const json = await res.json().catch(() => null);
   if (!res.ok) return { data: null, error: json?.error ?? { code: 'UNKNOWN', message: `HTTP ${res.status}` } };

@@ -1,8 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, Pressable, TextInput, Modal, ScrollView, Image, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, Pressable, TextInput, Modal, ScrollView, Image, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../../src/components/ScreenContainer';
 import { tokens } from '../../src/theme/tokens';
 import { api } from '../../src/lib/api';
+import { getAdminSession } from '../../src/lib/adminSession';
+import { ConfirmDialog } from '../../src/components/ConfirmDialog';
+import { Card, ScreenHeader, StatusBadge, EmptyState, AppButton, Coin, Row, FieldLabel, statusTone } from '../../src/components/ui';
+import type { TopupRequest, WithdrawalRequest } from '../../src/types/api';
 
 export default function FinanceScreen() {
   const [activeTab, setActiveTab] = useState<'topups' | 'withdrawals'>('topups');
@@ -10,15 +15,12 @@ export default function FinanceScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Topups state
-  const [topups, setTopups] = useState<any[]>([]);
+  const [topups, setTopups] = useState<TopupRequest[]>([]);
   const [topupStatus, setTopupStatus] = useState<string>('pending');
 
-  // Withdrawals state
-  const [withdrawals, setWithdrawals] = useState<any[]>([]);
+  const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [withdrawalStatus, setWithdrawalStatus] = useState<string>('pending');
 
-  // Modals & Action States
   const [activeModal, setActiveModal] = useState<'proof' | 'reject_topup' | 'mark_paid' | 'reject_withdrawal' | 'wallet_correct' | null>(null);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [proofUrl, setProofUrl] = useState<string | null>(null);
@@ -28,11 +30,13 @@ export default function FinanceScreen() {
   const [secondReviewer, setSecondReviewer] = useState('');
   const [processing, setProcessing] = useState(false);
 
-  // Wallet Correction Form
   const [targetProfileId, setTargetProfileId] = useState('');
   const [adjustAmount, setAdjustAmount] = useState('500');
   const [adjustDirection, setAdjustDirection] = useState<'credit' | 'debit'>('credit');
   const [adjustReason, setAdjustReason] = useState('');
+  const [confirmApproveTopup, setConfirmApproveTopup] = useState<TopupRequest | null>(null);
+
+  const isOwner = getAdminSession().isOwner;
 
   const fetchData = useCallback(async () => {
     setError(null);
@@ -42,7 +46,7 @@ export default function FinanceScreen() {
         if (res.data) setTopups(Array.isArray(res.data) ? res.data : res.data?.items ?? []);
         else if (res.error) setError(res.error.message);
       } else {
-        const res = await api.listWithdrawals({ status: withdrawalStatus });
+        const res = await api.listWithdrawals({ status: withdrawalStatus === 'pending' ? 'pending_review' : withdrawalStatus });
         if (res.data) setWithdrawals(Array.isArray(res.data) ? res.data : res.data?.items ?? []);
         else if (res.error) setError(res.error.message);
       }
@@ -58,7 +62,6 @@ export default function FinanceScreen() {
     fetchData();
   }, [fetchData]);
 
-  // Top-up Actions
   async function handleApproveTopup(item: any) {
     setProcessing(true);
     const res = await api.reviewTopup(item.id, 'approve');
@@ -88,7 +91,6 @@ export default function FinanceScreen() {
     }
   }
 
-  // Withdrawal Actions
   async function handleApproveWithdrawal(item: any) {
     setProcessing(true);
     const res = await api.approveWithdrawal(item.id);
@@ -182,64 +184,42 @@ export default function FinanceScreen() {
         fetchData();
       }}
     >
-      {/* Top Header & Toolbar */}
-      <View style={styles.topBar}>
-        <View style={styles.topBarTitleGroup}>
-          <Text style={styles.screenTitle}>Financial Queue & Wallet Control</Text>
-          <Text style={styles.screenSubtitle}>Review payment proofs, approve withdrawals, and audit wallet ledger</Text>
-        </View>
-        <Pressable style={styles.adjustBtn} onPress={() => setActiveModal('wallet_correct')}>
-          <Text style={styles.adjustBtnText}>💳 Manual Wallet Correction</Text>
-        </Pressable>
-      </View>
+      <ScreenHeader
+        title="Finance & Wallet"
+        subtitle="Review payment proofs, approve withdrawals, and audit the wallet ledger"
+        right={
+          isOwner ? (
+            <AppButton variant="secondary" label="Wallet Correction" icon="swap-vertical-outline" onPress={() => setActiveModal('wallet_correct')} />
+          ) : undefined
+        }
+      />
 
-      {/* Primary Tab Switcher */}
+      {/* Primary tab switcher */}
       <View style={styles.mainTabs}>
-        <Pressable
-          style={[styles.mainTab, activeTab === 'topups' && styles.mainTabActive]}
-          onPress={() => setActiveTab('topups')}
-        >
-          <Text style={[styles.mainTabText, activeTab === 'topups' && styles.mainTabTextActive]}>
-            📥 Top-up Requests
-          </Text>
+        <Pressable style={[styles.mainTab, activeTab === 'topups' && styles.mainTabActive]} onPress={() => setActiveTab('topups')}>
+          <Ionicons name="arrow-down-circle" size={16} color={activeTab === 'topups' ? tokens.color.ink : tokens.color.secondary} />
+          <Text style={[styles.mainTabText, activeTab === 'topups' && styles.mainTabTextActive]}>Top-up Requests</Text>
         </Pressable>
-        <Pressable
-          style={[styles.mainTab, activeTab === 'withdrawals' && styles.mainTabActive]}
-          onPress={() => setActiveTab('withdrawals')}
-        >
-          <Text style={[styles.mainTabText, activeTab === 'withdrawals' && styles.mainTabTextActive]}>
-            📤 Withdrawal Requests
-          </Text>
+        <Pressable style={[styles.mainTab, activeTab === 'withdrawals' && styles.mainTabActive]} onPress={() => setActiveTab('withdrawals')}>
+          <Ionicons name="arrow-up-circle" size={16} color={activeTab === 'withdrawals' ? tokens.color.ink : tokens.color.secondary} />
+          <Text style={[styles.mainTabText, activeTab === 'withdrawals' && styles.mainTabTextActive]}>Withdrawal Requests</Text>
         </Pressable>
       </View>
 
-      {/* Sub Filter */}
+      {/* Sub filter */}
       <View style={styles.subFilterRow}>
-        {activeTab === 'topups' ? (
-          ['pending', 'approved', 'rejected'].map((st) => (
+        {(activeTab === 'topups' ? ['pending', 'approved', 'rejected'] : ['pending', 'approved', 'paid', 'rejected']).map((st) => {
+          const active = activeTab === 'topups' ? topupStatus === st : withdrawalStatus === st;
+          return (
             <Pressable
               key={st}
-              onPress={() => setTopupStatus(st)}
-              style={[styles.subFilterTab, topupStatus === st && styles.subFilterTabActive]}
+              onPress={() => (activeTab === 'topups' ? setTopupStatus(st) : setWithdrawalStatus(st))}
+              style={[styles.subFilterTab, active && styles.subFilterTabActive]}
             >
-              <Text style={[styles.subFilterTabText, topupStatus === st && styles.subFilterTabTextActive]}>
-                {st.toUpperCase()}
-              </Text>
+              <Text style={[styles.subFilterTabText, active && styles.subFilterTabTextActive]}>{st.toUpperCase()}</Text>
             </Pressable>
-          ))
-        ) : (
-          ['pending', 'approved', 'paid', 'rejected'].map((st) => (
-            <Pressable
-              key={st}
-              onPress={() => setWithdrawalStatus(st)}
-              style={[styles.subFilterTab, withdrawalStatus === st && styles.subFilterTabActive]}
-            >
-              <Text style={[styles.subFilterTabText, withdrawalStatus === st && styles.subFilterTabTextActive]}>
-                {st.toUpperCase()}
-              </Text>
-            </Pressable>
-          ))
-        )}
+          );
+        })}
       </View>
 
       {error && (
@@ -248,141 +228,128 @@ export default function FinanceScreen() {
         </View>
       )}
 
-      {/* Content List */}
       {loading ? (
-        <ActivityIndicator color={tokens.color.primary} size="large" style={{ marginTop: 24 }} />
+        <ActivityIndicator color={tokens.color.primary} size="large" style={{ marginTop: 32 }} />
       ) : activeTab === 'topups' ? (
         topups.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>No Top-up Requests Found</Text>
-            <Text style={styles.emptySubtitle}>Status: {topupStatus.toUpperCase()}</Text>
-          </View>
+          <Card>
+            <EmptyState icon="arrow-down-circle-outline" title="No top-up requests" subtitle={`Status: ${topupStatus.toUpperCase()}`} />
+          </Card>
         ) : (
           <View style={styles.listGrid}>
             {topups.map((t) => (
-              <View key={t.id} style={styles.queueCard}>
-                <View style={styles.cardHeader}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.cardTitle}>{t.method?.toUpperCase()} — 🪙 {t.amount_coins}</Text>
+              <Card key={t.id} style={{ gap: tokens.space.md }}>
+                <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={styles.cardTitle}>{t.method?.toUpperCase()}</Text>
                     <Text style={styles.cardSubtitle}>Ref: {t.reference} · User: {t.profile_id}</Text>
                   </View>
-                  <View style={[styles.statusBadge, { backgroundColor: t.status === 'approved' ? '#E8F5E9' : t.status === 'rejected' ? '#FFEBEE' : tokens.color.creamPanel }]}>
-                    <Text style={styles.statusBadgeText}>{(t.status ?? 'pending').toUpperCase()}</Text>
-                  </View>
-                </View>
+                  <Row style={{ gap: 8 }}>
+                    <Coin amount={t.amount_coins} size={14} />
+                    <StatusBadge label={t.status ?? 'pending'} tone={statusTone(t.status)} />
+                  </Row>
+                </Row>
 
-                {t.risk_flag && (
+                {t.risk_flag || (Array.isArray(t.risk_flags) && t.risk_flags.length > 0) ? (
                   <View style={styles.riskBadge}>
-                    <Text style={styles.riskBadgeText}>⚠️ Risk Flag: {t.risk_flag}</Text>
+                    <Ionicons name="alert-circle" size={14} color={tokens.color.coin} />
+                    <Text style={styles.riskBadgeText}>Risk flag: {t.risk_flag ?? String((t.risk_flags as unknown[])[0])}</Text>
                   </View>
-                )}
+                ) : null}
 
                 <View style={styles.cardActionsRow}>
                   {t.proof_path && (
-                    <Pressable style={styles.secondaryBtn} onPress={() => viewProof(t)}>
-                      <Text style={styles.secondaryBtnText}>🖼️ View Proof</Text>
-                    </Pressable>
+                    <AppButton small variant="outline" label="View Proof" icon="image-outline" onPress={() => viewProof(t)} />
                   )}
-
                   {t.status === 'pending' && (
                     <>
-                      <Pressable style={styles.approveBtn} onPress={() => handleApproveTopup(t)} disabled={processing}>
-                        <Text style={styles.approveBtnText}>Approve & Credit</Text>
-                      </Pressable>
-                      <Pressable
-                        style={styles.rejectBtn}
+                      <AppButton small label="Approve & Credit" icon="checkmark-circle-outline" onPress={() => setConfirmApproveTopup(t)} />
+                      <AppButton
+                        small
+                        variant="danger"
+                        label="Reject"
+                        icon="close-circle-outline"
                         onPress={() => {
                           setSelectedItem(t);
                           setActionReason('');
                           setActiveModal('reject_topup');
                         }}
-                      >
-                        <Text style={styles.rejectBtnText}>Reject</Text>
-                      </Pressable>
+                      />
                     </>
                   )}
                 </View>
-              </View>
+              </Card>
             ))}
           </View>
         )
+      ) : withdrawals.length === 0 ? (
+        <Card>
+          <EmptyState icon="arrow-up-circle-outline" title="No withdrawal requests" subtitle={`Status: ${withdrawalStatus.toUpperCase()}`} />
+        </Card>
       ) : (
-        withdrawals.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>No Withdrawal Requests Found</Text>
-            <Text style={styles.emptySubtitle}>Status: {withdrawalStatus.toUpperCase()}</Text>
-          </View>
-        ) : (
-          <View style={styles.listGrid}>
-            {withdrawals.map((w) => (
-              <View key={w.id} style={styles.queueCard}>
-                <View style={styles.cardHeader}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.cardTitle}>{w.method?.toUpperCase()} — 🪙 {w.amount_coins}</Text>
-                    <Text style={styles.cardSubtitle}>Account: {w.account ?? 'N/A'} · User: {w.profile_id}</Text>
-                  </View>
-                  <View style={[styles.statusBadge, { backgroundColor: w.status === 'paid' ? '#E8F5E9' : w.status === 'rejected' ? '#FFEBEE' : tokens.color.creamPanel }]}>
-                    <Text style={styles.statusBadgeText}>{(w.status ?? 'pending').toUpperCase()}</Text>
-                  </View>
+        <View style={styles.listGrid}>
+          {withdrawals.map((w) => (
+            <Card key={w.id} style={{ gap: tokens.space.md }}>
+              <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={styles.cardTitle}>{w.method?.toUpperCase()}</Text>
+                  <Text style={styles.cardSubtitle}>Account: {w.account ?? w.account_snapshot ?? 'N/A'} · User: {w.profile_id}</Text>
                 </View>
+                <Row style={{ gap: 8 }}>
+                  <Coin amount={w.amount_coins} size={14} />
+                  <StatusBadge label={w.status ?? 'pending'} tone={statusTone(w.status)} />
+                </Row>
+              </Row>
 
-                <View style={styles.cardActionsRow}>
-                  {w.status === 'pending' && (
-                    <Pressable style={styles.secondaryBtn} onPress={() => handleApproveWithdrawal(w)} disabled={processing}>
-                      <Text style={styles.secondaryBtnText}>Approve</Text>
-                    </Pressable>
-                  )}
-
-                  {(w.status === 'pending' || w.status === 'approved') && (
-                    <Pressable
-                      style={styles.approveBtn}
-                      onPress={() => {
-                        setSelectedItem(w);
-                        setPayoutRef('');
-                        setSecondReviewer('');
-                        setActiveModal('mark_paid');
-                      }}
-                    >
-                      <Text style={styles.approveBtnText}>Mark Paid</Text>
-                    </Pressable>
-                  )}
-
-                  {w.status !== 'paid' && w.status !== 'rejected' && (
-                    <Pressable
-                      style={styles.rejectBtn}
-                      onPress={() => {
-                        setSelectedItem(w);
-                        setActionReason('');
-                        setActiveModal('reject_withdrawal');
-                      }}
-                    >
-                      <Text style={styles.rejectBtnText}>Reject</Text>
-                    </Pressable>
-                  )}
-                </View>
+              <View style={styles.cardActionsRow}>
+                {w.status === 'pending_review' && (
+                  <AppButton small variant="outline" label="Approve" icon="checkmark-circle-outline" onPress={() => handleApproveWithdrawal(w)} />
+                )}
+                {(w.status === 'pending_review' || w.status === 'approved') && (
+                  <AppButton
+                    small
+                    label="Mark Paid"
+                    icon="checkmark-done-circle-outline"
+                    onPress={() => {
+                      setSelectedItem(w);
+                      setPayoutRef('');
+                      setSecondReviewer('');
+                      setActiveModal('mark_paid');
+                    }}
+                  />
+                )}
+                {w.status !== 'paid' && w.status !== 'rejected' && (
+                  <AppButton
+                    small
+                    variant="danger"
+                    label="Reject"
+                    icon="close-circle-outline"
+                    onPress={() => {
+                      setSelectedItem(w);
+                      setActionReason('');
+                      setActiveModal('reject_withdrawal');
+                    }}
+                  />
+                )}
               </View>
-            ))}
-          </View>
-        )
+            </Card>
+          ))}
+        </View>
       )}
 
       {/* Modal: View Proof */}
       <Modal visible={activeModal === 'proof'} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Payment Proof Attachment</Text>
+            <Text style={styles.modalTitle}>Payment Proof</Text>
             {loadingProof ? (
               <ActivityIndicator size="large" color={tokens.color.primary} style={{ marginVertical: 32 }} />
             ) : proofUrl ? (
               <Image source={{ uri: proofUrl }} style={styles.proofImage} resizeMode="contain" />
             ) : (
-              <Text style={{ textAlign: 'center', color: tokens.color.secondary, marginVertical: 20 }}>
-                No uploaded image found for this payment reference
-              </Text>
+              <EmptyState icon="image-outline" title="No proof image" subtitle="No uploaded image found for this payment reference" />
             )}
-            <Pressable style={styles.modalCancelBtn} onPress={() => setActiveModal(null)}>
-              <Text style={styles.modalCancelText}>Close</Text>
-            </Pressable>
+            <AppButton variant="ghost" label="Close" onPress={() => setActiveModal(null)} />
           </View>
         </View>
       </Modal>
@@ -391,23 +358,18 @@ export default function FinanceScreen() {
       <Modal visible={activeModal === 'reject_topup'} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={[styles.modalTitle, { color: tokens.color.danger }]}>Reject Top-up Request</Text>
-
-            <Text style={styles.inputLabel}>Reason for Rejection</Text>
+            <Text style={[styles.modalTitle, { color: tokens.color.danger }]}>Reject Top-up</Text>
+            <FieldLabel>Reason for rejection</FieldLabel>
             <TextInput
               value={actionReason}
               onChangeText={setActionReason}
               placeholder="e.g. Reference mismatch / Invalid transaction proof"
+              placeholderTextColor={tokens.color.disabled}
               style={styles.modalInput}
             />
-
             <View style={styles.modalBtnRow}>
-              <Pressable style={styles.modalCancelBtn} onPress={() => setActiveModal(null)}>
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </Pressable>
-              <Pressable style={[styles.modalSubmitBtn, { backgroundColor: tokens.color.danger }]} onPress={handleRejectTopup} disabled={processing}>
-                {processing ? <ActivityIndicator color="white" /> : <Text style={styles.modalSubmitText}>Confirm Reject</Text>}
-              </Pressable>
+              <AppButton variant="ghost" label="Cancel" onPress={() => setActiveModal(null)} />
+              <AppButton label="Confirm Reject" variant="danger" icon="close-circle-outline" loading={processing} onPress={handleRejectTopup} />
             </View>
           </View>
         </View>
@@ -418,35 +380,21 @@ export default function FinanceScreen() {
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Mark Withdrawal Paid</Text>
-            <Text style={styles.modalSubtitle}>Amount: 🪙 {selectedItem?.amount_coins} · Account: {selectedItem?.account}</Text>
+            <Text style={styles.modalSubtitle}>Amount: <Coin amount={selectedItem?.amount_coins ?? 0} size={12} /> · Account: {selectedItem?.account}</Text>
 
-            <Text style={styles.inputLabel}>Payout Reference TRX ID / Bank Ref</Text>
-            <TextInput
-              value={payoutRef}
-              onChangeText={setPayoutRef}
-              placeholder="e.g. TRX-9402194812"
-              style={styles.modalInput}
-            />
+            <FieldLabel>Payout reference (TRX / bank ref)</FieldLabel>
+            <TextInput value={payoutRef} onChangeText={setPayoutRef} placeholder="e.g. TRX-9402194812" placeholderTextColor={tokens.color.disabled} style={styles.modalInput} />
 
             {selectedItem?.amount_coins >= 5000 && (
               <>
-                <Text style={styles.inputLabel}>Second Reviewer ID (Required &gt; 5,000 coins)</Text>
-                <TextInput
-                  value={secondReviewer}
-                  onChangeText={setSecondReviewer}
-                  placeholder="e.g. owner_admin_uuid"
-                  style={styles.modalInput}
-                />
+                <FieldLabel>Second reviewer (required over 5,000 coins)</FieldLabel>
+                <TextInput value={secondReviewer} onChangeText={setSecondReviewer} placeholder="e.g. owner_admin_uuid" placeholderTextColor={tokens.color.disabled} style={styles.modalInput} />
               </>
             )}
 
             <View style={styles.modalBtnRow}>
-              <Pressable style={styles.modalCancelBtn} onPress={() => setActiveModal(null)}>
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </Pressable>
-              <Pressable style={[styles.modalSubmitBtn, { backgroundColor: tokens.color.success }]} onPress={handleMarkPaid} disabled={processing}>
-                {processing ? <ActivityIndicator color="white" /> : <Text style={styles.modalSubmitText}>Confirm Paid</Text>}
-              </Pressable>
+              <AppButton variant="ghost" label="Cancel" onPress={() => setActiveModal(null)} />
+              <AppButton label="Confirm Paid" icon="checkmark-done-circle-outline" loading={processing} onPress={handleMarkPaid} />
             </View>
           </View>
         </View>
@@ -456,23 +404,18 @@ export default function FinanceScreen() {
       <Modal visible={activeModal === 'reject_withdrawal'} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={[styles.modalTitle, { color: tokens.color.danger }]}>Reject Withdrawal Request</Text>
-
-            <Text style={styles.inputLabel}>Rejection Reason</Text>
+            <Text style={[styles.modalTitle, { color: tokens.color.danger }]}>Reject Withdrawal</Text>
+            <FieldLabel>Rejection reason</FieldLabel>
             <TextInput
               value={actionReason}
               onChangeText={setActionReason}
               placeholder="e.g. Account number invalid / Fraud suspicion"
+              placeholderTextColor={tokens.color.disabled}
               style={styles.modalInput}
             />
-
             <View style={styles.modalBtnRow}>
-              <Pressable style={styles.modalCancelBtn} onPress={() => setActiveModal(null)}>
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </Pressable>
-              <Pressable style={[styles.modalSubmitBtn, { backgroundColor: tokens.color.danger }]} onPress={handleRejectWithdrawal} disabled={processing}>
-                {processing ? <ActivityIndicator color="white" /> : <Text style={styles.modalSubmitText}>Confirm Reject & Refund</Text>}
-              </Pressable>
+              <AppButton variant="ghost" label="Cancel" onPress={() => setActiveModal(null)} />
+              <AppButton label="Confirm Reject & Refund" variant="danger" icon="close-circle-outline" loading={processing} onPress={handleRejectWithdrawal} />
             </View>
           </View>
         </View>
@@ -485,91 +428,57 @@ export default function FinanceScreen() {
             <Text style={styles.modalTitle}>Manual Wallet Correction</Text>
             <Text style={styles.modalSubtitle}>Audit-logged administrative wallet credit or debit</Text>
 
-            <Text style={styles.inputLabel}>Target Player Profile ID (UUID)</Text>
-            <TextInput
-              value={targetProfileId}
-              onChangeText={setTargetProfileId}
-              placeholder="e.g. 550e8400-e29b-41d4-a716-446655440000"
-              style={styles.modalInput}
-            />
+            <FieldLabel>Target player profile ID (UUID)</FieldLabel>
+            <TextInput value={targetProfileId} onChangeText={setTargetProfileId} placeholder="e.g. 550e8400-e29b-41d4-a716-446655440000" placeholderTextColor={tokens.color.disabled} style={styles.modalInput} />
 
             <View style={{ flexDirection: 'row', gap: tokens.space.sm }}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.inputLabel}>Amount (Coins)</Text>
-                <TextInput value={adjustAmount} onChangeText={setAdjustAmount} keyboardType="numeric" style={styles.modalInput} />
+                <FieldLabel>Amount (coins)</FieldLabel>
+                <TextInput value={adjustAmount} onChangeText={setAdjustAmount} keyboardType="numeric" placeholderTextColor={tokens.color.disabled} style={styles.modalInput} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.inputLabel}>Direction</Text>
-                <View style={{ flexDirection: 'row', gap: 4, marginTop: 4 }}>
-                  <Pressable
-                    style={[styles.directionBtn, adjustDirection === 'credit' && styles.directionBtnActiveCredit]}
-                    onPress={() => setAdjustDirection('credit')}
-                  >
-                    <Text style={{ fontSize: 12, fontWeight: '700', color: adjustDirection === 'credit' ? 'white' : tokens.color.ink }}>Credit (+)</Text>
+                <FieldLabel>Direction</FieldLabel>
+                <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
+                  <Pressable style={[styles.directionBtn, adjustDirection === 'credit' && styles.directionBtnActiveCredit]} onPress={() => setAdjustDirection('credit')}>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: adjustDirection === 'credit' ? tokens.color.onPrimary : tokens.color.ink }}>Credit (+)</Text>
                   </Pressable>
-                  <Pressable
-                    style={[styles.directionBtn, adjustDirection === 'debit' && styles.directionBtnActiveDebit]}
-                    onPress={() => setAdjustDirection('debit')}
-                  >
-                    <Text style={{ fontSize: 12, fontWeight: '700', color: adjustDirection === 'debit' ? 'white' : tokens.color.ink }}>Debit (-)</Text>
+                  <Pressable style={[styles.directionBtn, adjustDirection === 'debit' && styles.directionBtnActiveDebit]} onPress={() => setAdjustDirection('debit')}>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: adjustDirection === 'debit' ? tokens.color.onPrimary : tokens.color.ink }}>Debit (-)</Text>
                   </Pressable>
                 </View>
               </View>
             </View>
 
-            <Text style={styles.inputLabel}>Audit Reason (min 5 chars)</Text>
-            <TextInput
-              value={adjustReason}
-              onChangeText={setAdjustReason}
-              placeholder="e.g. Compensation for tournament room crash"
-              style={styles.modalInput}
-            />
+            <FieldLabel>Audit reason (min 5 chars)</FieldLabel>
+            <TextInput value={adjustReason} onChangeText={setAdjustReason} placeholder="e.g. Compensation for tournament room crash" placeholderTextColor={tokens.color.disabled} style={styles.modalInput} />
 
             <View style={styles.modalBtnRow}>
-              <Pressable style={styles.modalCancelBtn} onPress={() => setActiveModal(null)}>
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </Pressable>
-              <Pressable style={styles.modalSubmitBtn} onPress={handleWalletCorrection} disabled={processing}>
-                {processing ? <ActivityIndicator color="white" /> : <Text style={styles.modalSubmitText}>Submit Correction</Text>}
-              </Pressable>
+              <AppButton variant="ghost" label="Cancel" onPress={() => setActiveModal(null)} />
+              <AppButton label="Submit Correction" icon="swap-vertical-outline" loading={processing} onPress={handleWalletCorrection} />
             </View>
           </View>
         </View>
       </Modal>
+
+      <ConfirmDialog
+        visible={confirmApproveTopup !== null}
+        title="Approve top-up?"
+        message={`${confirmApproveTopup?.amount_coins ?? 0} coins will be credited to the player's wallet and cannot be undone.`}
+        confirmLabel="Approve & Credit"
+        loading={processing}
+        onCancel={() => setConfirmApproveTopup(null)}
+        onConfirm={() => {
+          if (!confirmApproveTopup) return;
+          const item = confirmApproveTopup;
+          setConfirmApproveTopup(null);
+          handleApproveTopup(item);
+        }}
+      />
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  topBar: {
-    flexDirection: Platform.OS === 'web' ? 'row' : 'column',
-    justifyContent: 'space-between',
-    alignItems: Platform.OS === 'web' ? 'center' : 'flex-start',
-    gap: tokens.space.sm,
-  },
-  topBarTitleGroup: {
-    gap: 4,
-  },
-  screenTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: tokens.color.ink,
-  },
-  screenSubtitle: {
-    fontSize: 13,
-    color: tokens.color.secondary,
-  },
-  adjustBtn: {
-    backgroundColor: tokens.color.ink,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: tokens.radius.button,
-  },
-  adjustBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 13,
-  },
   mainTabs: {
     flexDirection: 'row',
     backgroundColor: tokens.color.surface,
@@ -581,24 +490,16 @@ const styles = StyleSheet.create({
   mainTab: {
     flex: 1,
     paddingVertical: 12,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     borderRadius: tokens.radius.button,
   },
-  mainTabActive: {
-    backgroundColor: tokens.color.creamPanel,
-  },
-  mainTabText: {
-    fontWeight: '700',
-    fontSize: 14,
-    color: tokens.color.secondary,
-  },
-  mainTabTextActive: {
-    color: tokens.color.ink,
-  },
-  subFilterRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
+  mainTabActive: { backgroundColor: tokens.color.creamPanel },
+  mainTabText: { fontWeight: '700', fontSize: 14, color: tokens.color.secondary },
+  mainTabTextActive: { color: tokens.color.ink },
+  subFilterRow: { flexDirection: 'row', gap: 8 },
   subFilterTab: {
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -607,143 +508,30 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: tokens.color.border,
   },
-  subFilterTabActive: {
-    backgroundColor: tokens.color.primary,
-    borderColor: tokens.color.primary,
-  },
-  subFilterTabText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: tokens.color.secondary,
-  },
-  subFilterTabTextActive: {
-    color: '#FFFFFF',
-  },
-  errorBox: {
-    backgroundColor: '#FFEBEE',
-    borderWidth: 1,
-    borderColor: tokens.color.danger,
-    borderRadius: tokens.radius.card,
-    padding: tokens.space.md,
-  },
-  errorText: {
-    color: tokens.color.danger,
-    fontWeight: '600',
-  },
-  emptyCard: {
-    backgroundColor: tokens.color.surface,
-    borderRadius: tokens.radius.card,
-    padding: tokens.space.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: tokens.color.border,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: tokens.color.ink,
-  },
-  emptySubtitle: {
-    fontSize: 13,
-    color: tokens.color.secondary,
-    marginTop: 4,
-  },
-  listGrid: {
-    gap: tokens.space.md,
-  },
-  queueCard: {
-    backgroundColor: tokens.color.surface,
-    borderRadius: tokens.radius.card,
-    padding: tokens.space.md,
-    borderWidth: 1,
-    borderColor: tokens.color.border,
-    gap: tokens.space.sm,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: tokens.color.ink,
-  },
-  cardSubtitle: {
-    fontSize: 12,
-    color: tokens.color.secondary,
-    marginTop: 2,
-  },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: tokens.radius.pill,
-    borderWidth: 1,
-    borderColor: tokens.color.border,
-  },
-  statusBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: tokens.color.ink,
-  },
+  subFilterTabActive: { backgroundColor: tokens.color.primary, borderColor: tokens.color.primary },
+  subFilterTabText: { fontSize: 12, fontWeight: '700', color: tokens.color.secondary },
+  subFilterTabTextActive: { color: tokens.color.onPrimary },
+  errorBox: { backgroundColor: tokens.color.dangerSoft, borderWidth: 1, borderColor: tokens.color.danger, borderRadius: tokens.radius.card, padding: tokens.space.md },
+  errorText: { color: tokens.color.danger, fontWeight: '600' },
+  listGrid: { gap: tokens.space.md },
+  cardTitle: { fontSize: 16, fontWeight: '800', color: tokens.color.ink },
+  cardSubtitle: { fontSize: 12, color: tokens.color.secondary, marginTop: 2 },
   riskBadge: {
-    backgroundColor: '#FFF3E0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: tokens.color.warnSoft,
     borderWidth: 1,
     borderColor: tokens.color.coin,
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 5,
     borderRadius: tokens.radius.input,
   },
-  riskBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: tokens.color.ink,
-  },
-  cardActionsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 4,
-  },
-  secondaryBtn: {
-    borderWidth: 1,
-    borderColor: tokens.color.border,
-    borderRadius: tokens.radius.button,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: tokens.color.canvas,
-  },
-  secondaryBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: tokens.color.ink,
-  },
-  approveBtn: {
-    backgroundColor: tokens.color.primary,
-    borderRadius: tokens.radius.button,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  approveBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  rejectBtn: {
-    backgroundColor: tokens.color.danger,
-    borderRadius: tokens.radius.button,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  rejectBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
+  riskBadgeText: { fontSize: 12, fontWeight: '600', color: tokens.color.ink },
+  cardActionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: tokens.color.backdrop,
     alignItems: 'center',
     justifyContent: 'center',
     padding: tokens.space.md,
@@ -753,30 +541,12 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radius.card,
     padding: tokens.space.lg,
     width: '100%',
-    maxWidth: 500,
-    gap: tokens.space.sm,
+    maxWidth: 520,
+    gap: tokens.space.xs,
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: tokens.color.ink,
-  },
-  modalSubtitle: {
-    fontSize: 13,
-    color: tokens.color.secondary,
-  },
-  proofImage: {
-    width: '100%',
-    height: 300,
-    borderRadius: tokens.radius.input,
-    marginVertical: 12,
-  },
-  inputLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: tokens.color.secondary,
-    marginTop: 4,
-  },
+  modalTitle: { fontSize: 19, fontWeight: '800', color: tokens.color.ink, letterSpacing: -0.3 },
+  modalSubtitle: { fontSize: 13, color: tokens.color.secondary, marginBottom: 4 },
+  proofImage: { width: '100%', height: 300, borderRadius: tokens.radius.input, marginVertical: 12 },
   modalInput: {
     borderWidth: 1,
     borderColor: tokens.color.border,
@@ -795,39 +565,8 @@ const styles = StyleSheet.create({
     borderColor: tokens.color.border,
     backgroundColor: tokens.color.canvas,
   },
-  directionBtnActiveCredit: {
-    backgroundColor: tokens.color.success,
-    borderColor: tokens.color.success,
-  },
-  directionBtnActiveDebit: {
-    backgroundColor: tokens.color.danger,
-    borderColor: tokens.color.danger,
-  },
-  modalBtnRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: tokens.space.sm,
-    marginTop: tokens.space.md,
-  },
-  modalCancelBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: tokens.radius.button,
-    borderWidth: 1,
-    borderColor: tokens.color.border,
-  },
-  modalCancelText: {
-    color: tokens.color.secondary,
-    fontWeight: '600',
-  },
-  modalSubmitBtn: {
-    backgroundColor: tokens.color.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: tokens.radius.button,
-  },
-  modalSubmitText: {
-    color: 'white',
-    fontWeight: '700',
-  },
+  directionBtnActiveCredit: { backgroundColor: tokens.color.success, borderColor: tokens.color.success },
+  directionBtnActiveDebit: { backgroundColor: tokens.color.danger, borderColor: tokens.color.danger },
+  modalBtnRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: tokens.space.sm, marginTop: tokens.space.md, flexWrap: 'wrap' },
 });
+

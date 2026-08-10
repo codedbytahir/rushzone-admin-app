@@ -6,11 +6,12 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "rushzonecontrol",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#1C140F",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FFFDF6"
+      "backgroundColor": "#1C140F"
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
@@ -20,7 +21,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FFFDF6"
+        "backgroundColor": "#1C140F"
       },
       "package": "com.rushzone.control",
       "blockedPermissions": [],

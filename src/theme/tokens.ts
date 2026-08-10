@@ -1,5 +1,7 @@
-// src/theme/tokens.ts — Design tokens per docs/shared/07-design-tokens.md
-// Admin warm-cream variant of the mountain-sunset brand language.
+// src/theme/tokens.ts — Design tokens (dark espresso variant)
+// Dark palette per docs/shared/07-design-tokens.md (player-espresso tuned for
+// long operational sessions): warm canvas, raised surfaces, orange primary,
+// gold coins, soft status tints that read correctly on dark backgrounds.
 //
 // Note: React Native does not parse CSS-style font fallback lists
 // ("PP Editorial Old", Georgia, serif). Fonts must be either a single
@@ -10,25 +12,32 @@
 
 export const tokens = {
   color: {
-    canvas: '#FFFDF6',
-    surface: '#FFFFFF',
-    creamPanel: '#FFF0C3',
-    ink: '#172016',
-    secondary: '#5B4E3C',
+    canvas: '#1C140F',
+    surface: '#261B14',
+    surfaceRaised: '#2F2219',
+    creamPanel: '#33251A',
+    ink: '#F6ECDC',
+    secondary: '#B9A488',
     primary: '#ED5A1F',
     primaryPressed: '#C24716',
     coin: '#F4B826',
-    success: '#39754B',
-    danger: '#B23A2E',
-    border: '#DED3B9',
-    disabled: '#A99C82',
+    success: '#4F9A66',
+    successSoft: '#1E3526',
+    danger: '#C8493B',
+    dangerSoft: '#3A211D',
+    infoSoft: '#1E2E3F',
+    warnSoft: '#3A2F1C',
+    border: '#4A382A',
+    disabled: '#7A6853',
+    backdrop: 'rgba(0,0,0,0.72)',
+    onPrimary: '#FFFFFF',
     // sunset stripe (red -> orange -> gold -> cream) above bottom nav on every admin screen
     sunset: ['#C8493B', '#ED5A1F', '#F4B826', '#FFF0C3'] as const,
   },
   radius: {
-    card: 12,
-    button: 8,
-    input: 8,
+    card: 16,
+    button: 10,
+    input: 10,
     pill: 999,
   },
   // 4/8 spacing scale; use these instead of bare paddings so screens don't

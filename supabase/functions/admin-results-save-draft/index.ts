@@ -1,4 +1,5 @@
 import { handleCors, corsHeaders, withCors } from "../_shared/cors.ts";
+import { requireAdmin } from "../_shared/auth.ts";
 import { createAdminClient } from "../_shared/supabase.ts";
 import { jsonError } from "../_shared/errors.ts";
 import { writeAuditLog } from "../_shared/audit.ts";
@@ -7,14 +8,9 @@ Deno.serve(async (req: Request) => {
   if (cors) return cors;
   if (req.method !== "POST") return withCors(req, jsonError("VALIDATION_ERROR" as any, "POST required", 405));
   try {
-    const auth = req.headers.get("authorization") ?? "";
-    const m = auth.match(/^Bearer\s+(.+)$/i);
-    if (!m) return withCors(req, jsonError("UNAUTHORIZED" as any, "Missing token", 401));
-    const jwt = m[1];
+    const { user } = await requireAdmin(req, "result.publish");
     const admin = createAdminClient();
-    const { data: userData } = await admin.auth.getUser(jwt);
-    if (!userData?.user) return withCors(req, jsonError("UNAUTHORIZED" as any, "Invalid token", 401));
-    const { data: caller } = await admin.schema("admin").from("assignments").select("id, status").eq("user_id", userData.user.id).maybeSingle();
+    const { data: caller } = await admin.schema("admin").from("assignments").select("id, status").eq("user_id", user.id).maybeSingle();
     if (!caller || caller.status !== "active") return withCors(req, jsonError("FORBIDDEN" as any, "Admin only", 403));
     const body = await req.json();
     const tournamentId = body.tournament_id;
@@ -31,9 +27,9 @@ Deno.serve(async (req: Request) => {
       if (existing) await admin.schema("app").from("match_results").update(payload).eq("id", existing.id);
       else await admin.schema("app").from("match_results").insert(payload);
     }
-    await writeAuditLog({ actorId: userData.user.id, action: "result.save_draft", entityType: "tournament", entityId: tournamentId, after: { count: rows.length } });
+    await writeAuditLog({ actorId: user.id, action: "result.save_draft", entityType: "tournament", entityId: tournamentId, after: { count: rows.length } });
     return withCors(req, new Response(JSON.stringify({ ok: true, saved: rows.length }), { headers: { "Content-Type": "application/json", ...corsHeaders(req) } }));
   } catch (e) {
-    return withCors(req, jsonError("INTERNAL" as any, String(e), 500));
+    return withCors(req, e instanceof Response ? e : jsonError("INTERNAL" as any, String(e), 500));
   }
 });

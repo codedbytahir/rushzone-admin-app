@@ -29,7 +29,7 @@ begin
       -- Simplified: recompute available as sum(case when direction='credit' then amount when direction='debit' then -amount else 0 end)
       -- plus hold/release handled as moves. For MVP: just compare available via sum of credit/debit where direction in ('credit','debit')
       -- Real prod should compute precisely matching app.wallet_* semantics.
-      sum(case when direction='credit' then amount when direction in ('debit') then -amount else 0 end) as ledger_avail
+      sum(case when direction='credit' then amount when direction in ('debit') then -amount else 0 end)::bigint as ledger_avail
     from app.wallet_ledger l
     group by l.profile_id
   )

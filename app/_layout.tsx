@@ -1,6 +1,7 @@
 // app/_layout.tsx — Expo Router root with auth gate
 import 'react-native-url-polyfill/auto';
 import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { supabase } from '../src/lib/supabase';
@@ -27,12 +28,15 @@ export default function RootLayout() {
   }
 
   return (
-    <Stack
+    <>
+      <StatusBar style="light" />
+      <Stack
       screenOptions={{
         headerStyle: { backgroundColor: tokens.color.surface },
         headerTintColor: tokens.color.ink,
         contentStyle: { backgroundColor: tokens.color.canvas },
       }}
-    />
+      />
+    </>
   );
 }

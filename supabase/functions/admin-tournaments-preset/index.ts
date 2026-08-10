@@ -1,25 +1,29 @@
 import { handleCors, corsHeaders, withCors } from "../_shared/cors.ts";
+import { requireAdmin } from "../_shared/auth.ts";
 import { createAdminClient } from "../_shared/supabase.ts";
 import { jsonError } from "../_shared/errors.ts";
 Deno.serve(async (req: Request) => {
   const cors = handleCors(req);
   if (cors) return cors;
   try {
-    const auth = req.headers.get("authorization") ?? "";
-    const m = auth.match(/^Bearer\s+(.+)$/i);
-    if (!m) return withCors(req, jsonError("UNAUTHORIZED" as any, "Missing token", 401));
-    const jwt = m[1];
+    const { user, admin: ctx } = await requireAdmin(req, "tournament.view");
     const admin = createAdminClient();
-    const { data: userData } = await admin.auth.getUser(jwt);
-    if (!userData?.user) return withCors(req, jsonError("UNAUTHORIZED" as any, "Invalid token", 401));
     const url = new URL(req.url);
     const action = url.searchParams.get("action") ?? "list";
+    const requireCreate = () => {
+      if (!ctx.isOwner && !ctx.permissions.includes("tournament.create")) {
+        return withCors(req, jsonError("FORBIDDEN" as any, "Missing permission: tournament.create", 403));
+      }
+      return null;
+    };
     if (req.method === "GET" && action === "list") {
       const { data } = await admin.schema("app").from("tournaments").select("id, title, mode, map, capacity, entry_fee, prize_pool, prize_distribution, score_rules, rules_text, rounds, is_preset, preset_key").eq("is_preset", true).order("created_at", { ascending: false });
       return withCors(req, new Response(JSON.stringify({ data }), { headers: { "Content-Type": "application/json", ...corsHeaders(req) } }));
     }
     const body = await req.json();
     if (action === "save" || body.preset_key || body.is_preset) {
+      const denied = requireCreate();
+      if (denied) return denied;
       const srcId = body.source_tournament_id ?? body.id;
       let base: any = {};
       if (srcId) {
@@ -41,12 +45,14 @@ Deno.serve(async (req: Request) => {
         is_preset: true,
         preset_key: presetKey,
         status: "draft",
-        created_by: userData.user.id,
+        created_by: user.id,
       };
       const { data: inserted } = await admin.schema("app").from("tournaments").insert(row).select("id").single();
       return withCors(req, new Response(JSON.stringify({ ok: true, id: inserted.id }), { headers: { "Content-Type": "application/json", ...corsHeaders(req) } }));
     }
     if (action === "apply") {
+      const denied = requireCreate();
+      if (denied) return denied;
       const presetId = body.preset_id;
       if (!presetId) return withCors(req, jsonError("VALIDATION_ERROR" as any, "preset_id required", 400));
       const { data: preset } = await admin.schema("app").from("tournaments").select("*").eq("id", presetId).eq("is_preset", true).maybeSingle();
@@ -69,13 +75,13 @@ Deno.serve(async (req: Request) => {
         reg_close_at: body.reg_close_at ?? null,
         match_start_at: body.match_start_at ?? null,
         room_release_at: body.room_release_at ?? null,
-        created_by: userData.user.id,
+        created_by: user.id,
       };
       const { data: inserted } = await admin.schema("app").from("tournaments").insert(row).select("id").single();
       return withCors(req, new Response(JSON.stringify({ ok: true, id: inserted.id }), { headers: { "Content-Type": "application/json", ...corsHeaders(req) } }));
     }
     return withCors(req, jsonError("VALIDATION_ERROR" as any, "Unknown action", 400));
   } catch (e) {
-    return withCors(req, jsonError("INTERNAL" as any, String(e), 500));
+    return withCors(req, e instanceof Response ? e : jsonError("INTERNAL" as any, String(e), 500));
   }
 });
