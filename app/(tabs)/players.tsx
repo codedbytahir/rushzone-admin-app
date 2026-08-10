@@ -34,7 +34,7 @@ export default function PlayersScreen() {
     try {
       const res = await api.searchPlayers(searchQuery.trim());
       if (res.data) {
-        setPlayers(Array.isArray(res.data) ? res.data : res.data?.profiles ?? []);
+        setPlayers(res.data);
       } else if (res.error) {
         setError(res.error.message);
       }

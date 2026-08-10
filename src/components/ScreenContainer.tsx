@@ -27,7 +27,7 @@ export function ScreenContainer({
     return (
       <View style={styles.outerContainer}>
         <ScrollView
-          style={styles.scrollView}
+          style={[styles.scrollView, Platform.OS === 'web' && ({ scrollbarWidth: 'thin', scrollbarColor: tokens.color.border + ' ' + tokens.color.canvas } as any)]}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           refreshControl={
@@ -60,6 +60,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: tokens.space.md,
     paddingHorizontal: Platform.OS === 'web' ? tokens.space.lg : tokens.space.md,
+    paddingBottom: tokens.space.xxl,
   },
   innerContainer: {
     width: '100%',

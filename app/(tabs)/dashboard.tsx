@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../../src/components/ScreenContainer';
 import { tokens } from '../../src/theme/tokens';
 import { api } from '../../src/lib/api';
+import { getAdminSession } from '../../src/lib/adminSession';
 import { Card, StatusBadge, EmptyState, AppButton, Coin, Row, SectionLabel, type IconName } from '../../src/components/ui';
 import { BannerSlideshow } from '../../src/components/BannerSlideshow';
 import type { ReportSummary, TopupRequest, WithdrawalRequest, Tournament } from '../../src/types/api';
@@ -22,6 +23,7 @@ export default function Dashboard() {
   const [reconcileResult, setReconcileResult] = useState<any>(null);
   const [reconciling, setReconciling] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isOwner = getAdminSession().isOwner;
 
   const loadData = useCallback(async () => {
     setError(null);
@@ -34,9 +36,9 @@ export default function Dashboard() {
       ]);
 
       if (repRes.data) setReports(repRes.data);
-      if (topRes.data) setTopups(Array.isArray(topRes.data) ? topRes.data : topRes.data?.items ?? []);
-      if (witRes.data) setWithdrawals(Array.isArray(witRes.data) ? witRes.data : witRes.data?.items ?? []);
-      if (tourRes.data) setTournaments(Array.isArray(tourRes.data) ? tourRes.data : tourRes.data?.tournaments ?? []);
+      setTopups(topRes.data ?? []);
+      setWithdrawals(witRes.data ?? []);
+      setTournaments(tourRes.data ?? []);
     } catch (err: any) {
       setError(err?.message ?? 'Failed to load dashboard metrics');
     } finally {
@@ -76,6 +78,7 @@ export default function Dashboard() {
     reports?.tournaments?.active ??
     tournaments.filter((t) => t.status === 'live' || t.status === 'registration_open').length;
   const mismatchCount = reconcileResult?.mismatches?.length ?? 0;
+  const payoutTotal = (reports?.withdrawals?.paid_amount ?? 0) + (reports?.prizes?.total_awarded ?? 0) + (reports?.rewards?.total_coins ?? 0);
 
   const metricCards: { label: string; value: string | number; sub: string; icon: IonName; color: string; onPress?: () => void; coin?: number }[] = [
     { label: 'Pending Top-ups', value: pendingTopupsCount, sub: 'Awaiting review', icon: 'arrow-down-circle', color: tokens.color.primary, onPress: () => router.push('/(tabs)/finance') },
@@ -143,6 +146,43 @@ export default function Dashboard() {
           </Pressable>
         ))}
       </View>
+
+      {isOwner && (
+      <>
+      {/* Coins & money given to players (owner visibility) */}
+      <Card style={{ gap: tokens.space.md }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.space.sm }}>
+          <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: tokens.color.creamPanel, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="cash-outline" size={18} color={tokens.color.coin} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.cardTitle}>Coins Given to Players</Text>
+            <Text style={styles.itemSubtitle}>What has gone out of the business to users (cash + coins)</Text>
+          </View>
+        </View>
+
+        <View style={styles.payoutTotalBox}>
+          <Text style={styles.payoutTotalLabel}>TOTAL PAID OUT</Text>
+          <Coin amount={payoutTotal} size={26} />
+        </View>
+
+        <View style={styles.payoutRows}>
+          {[
+            { label: 'Cash paid to users (approved withdrawals)', value: reports?.withdrawals?.paid_amount ?? 0 },
+            { label: 'Tournament prizes awarded', value: reports?.prizes?.total_awarded ?? 0 },
+            { label: 'Rewards, streaks & referral coins', value: reports?.rewards?.total_coins ?? 0 },
+            { label: 'Coins credited via approved top-ups', value: reports?.topups?.approved_amount ?? 0 },
+            { label: 'Coins currently held for pending payouts', value: reports?.withdrawals?.held_amount ?? 0 },
+          ].map((r) => (
+            <View key={r.label} style={styles.payoutRow}>
+              <Text style={styles.payoutLabel}>{r.label}</Text>
+              <Coin amount={r.value} size={13} />
+            </View>
+          ))}
+        </View>
+      </Card>
+      </>
+      )}
 
       {/* Quick actions */}
       <Card>
@@ -309,4 +349,24 @@ const styles = StyleSheet.create({
   itemRow: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: tokens.color.border },
   itemTitle: { fontSize: 14, fontWeight: '700', color: tokens.color.ink },
   itemSubtitle: { fontSize: 12, color: tokens.color.secondary, marginTop: 1 },
+  payoutTotalBox: {
+    backgroundColor: tokens.color.creamPanel,
+    borderWidth: 1,
+    borderColor: tokens.color.border,
+    borderRadius: tokens.radius.input,
+    padding: tokens.space.md,
+    gap: 2,
+  },
+  payoutTotalLabel: { fontSize: 11, fontWeight: '700', color: tokens.color.coin, letterSpacing: 1, textTransform: 'uppercase' },
+  payoutRows: { gap: 2 },
+  payoutRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 7,
+    borderBottomWidth: 1,
+    borderBottomColor: tokens.color.border,
+    gap: tokens.space.sm,
+  },
+  payoutLabel: { fontSize: 12, color: tokens.color.secondary, flex: 1 },
 });

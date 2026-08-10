@@ -1,19 +1,38 @@
 {
-  "cli": { "version": ">= 5.9.0" },
+  "cli": {
+    "version": ">= 5.9.0"
+  },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "env": { "EXPO_PUBLIC_APP_ENV": "development" }
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "development"
+      }
     },
     "preview": {
       "distribution": "internal",
-      "env": { "EXPO_PUBLIC_APP_ENV": "staging" }
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "staging"
+      }
     },
     "production": {
       "distribution": "internal",
-      "env": { "EXPO_PUBLIC_APP_ENV": "production" }
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "production"
+      }
+    },
+    "apk": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "production"
+      }
     }
   },
-  "submit": { "production": {} }
+  "submit": {
+    "production": {}
+  }
 }

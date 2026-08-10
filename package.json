@@ -24,7 +24,9 @@
     "expo": "~51.0.28",
     "expo-constants": "~16.0.2",
     "expo-crypto": "~13.0.2",
+    "expo-dev-client": "~4.0.29",
     "expo-image-manipulator": "~12.0.5",
+    "expo-image-picker": "~15.1.0",
     "expo-linking": "~6.3.1",
     "expo-notifications": "~0.28.19",
     "expo-router": "~3.5.23",
@@ -46,6 +48,7 @@
     "@types/react": "~18.2.79",
     "@typescript-eslint/eslint-plugin": "^8.66.0",
     "@typescript-eslint/parser": "^8.66.0",
+    "eas-cli": "^21.7.1",
     "eslint": "^8.57.0",
     "supabase": "^1.200.0",
     "typescript": "^5.3.3"

@@ -43,12 +43,12 @@ export default function FinanceScreen() {
     try {
       if (activeTab === 'topups') {
         const res = await api.listTopups({ status: topupStatus });
-        if (res.data) setTopups(Array.isArray(res.data) ? res.data : res.data?.items ?? []);
-        else if (res.error) setError(res.error.message);
+        setTopups(res.data ?? []);
+        if (res.error) setError(res.error.message);
       } else {
         const res = await api.listWithdrawals({ status: withdrawalStatus === 'pending' ? 'pending_review' : withdrawalStatus });
-        if (res.data) setWithdrawals(Array.isArray(res.data) ? res.data : res.data?.items ?? []);
-        else if (res.error) setError(res.error.message);
+        setWithdrawals(res.data ?? []);
+        if (res.error) setError(res.error.message);
       }
     } catch (err: any) {
       setError(err?.message ?? 'Failed to load finance data');

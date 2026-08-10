@@ -13,10 +13,13 @@
       "resizeMode": "contain",
       "backgroundColor": "#1C140F"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.rushzone.control"
+      "bundleIdentifier": "com.rushzone.control",
+      "buildNumber": "1"
     },
     "android": {
       "adaptiveIcon": {
@@ -26,7 +29,13 @@
       "package": "com.rushzone.control",
       "blockedPermissions": [],
       "usesCleartextTraffic": false,
-      "permissions": ["android.permission.NOTIFICATIONS", "android.permission.VIBRATE"]
+      "permissions": [
+        "android.permission.NOTIFICATIONS",
+        "android.permission.VIBRATE",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_EXTERNAL_STORAGE"
+      ],
+      "versionCode": 1
     },
     "web": {
       "bundler": "metro"
@@ -39,6 +48,12 @@
         {
           "icon": "./assets/notification-icon.png",
           "color": "#ED5A1F"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Rush Zone Control to access your photos so you can upload tournament thumbnails and banner images."
         }
       ]
     ],

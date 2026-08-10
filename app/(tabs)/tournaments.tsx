@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, Pressable, TextInput, Modal, ScrollView, ActivityIndicator, Switch, Image, Platform } from 'react-native';
+import { View, Text, StyleSheet, Pressable, TextInput, Modal, ScrollView, ActivityIndicator, Switch, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../../src/components/ScreenContainer';
 import { tokens } from '../../src/theme/tokens';
 import { api } from '../../src/lib/api';
 import { supabase } from '../../src/lib/supabase';
+import { pickAndUploadImage } from '../../src/lib/upload';
 import { useAdminSession } from '../../src/hooks/useAdminSession';
 import { ConfirmDialog } from '../../src/components/ConfirmDialog';
 import { Card, ScreenHeader, StatusBadge, EmptyState, AppButton, Coin, Row, FieldLabel, statusTone } from '../../src/components/ui';
@@ -63,7 +64,7 @@ export default function TournamentsScreen() {
         q: searchQuery.trim() ? searchQuery.trim() : undefined,
       });
       if (res.data) {
-        setTournaments(Array.isArray(res.data) ? res.data : res.data?.tournaments ?? []);
+        setTournaments(res.data);
       } else if (res.error) {
         setError(res.error.message ?? 'Failed to load tournaments');
       }
@@ -255,9 +256,9 @@ export default function TournamentsScreen() {
     const res = await api.getEntrants(t.id);
     setLoading(false);
     if (res.data) {
-      const rows = Array.isArray(res.data) ? res.data : res.data?.entrants ?? [];
+      const rows = res.data.entrants ?? [];
       setEntrants(rows);
-      setRosters(res.data?.rosters ?? []);
+      setRosters(res.data.rosters ?? []);
     } else {
       setEntrants([]);
       setRosters([]);
@@ -271,7 +272,7 @@ export default function TournamentsScreen() {
     const res = await api.getResults(t.id);
     setLoading(false);
     if (res.data) {
-      setResultsDraft(Array.isArray(res.data) ? res.data : res.data?.results ?? []);
+      setResultsDraft(res.data);
     } else {
       setResultsDraft([]);
     }
@@ -353,42 +354,22 @@ export default function TournamentsScreen() {
     setActiveModal('presets');
     const res = await api.listPresets();
     if (res.data) {
-      setPresets(Array.isArray(res.data) ? res.data : res.data?.presets ?? []);
+      setPresets(res.data);
     }
   }
 
   async function handlePickCover() {
-    if (Platform.OS === 'web') {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.onchange = async (e: any) => {
-        const file = e.target?.files?.[0];
-        if (!file) return;
-        setUploadingCover(true);
-        try {
-          const cleanName = file.name.replace(/[^a-zA-Z0-9._-]/g, '');
-          const storagePath = `tournaments/cover_${Date.now()}_${cleanName}`;
-          const { data, error } = await supabase.storage.from('tournament-thumbnails').upload(storagePath, file, { upsert: true });
-          if (error) {
-            alert(`Upload failed: ${error.message}`);
-          } else {
-            const path = data.path;
-            setFormCoverPath(path);
-            const { data: pubData } = supabase.storage.from('tournament-thumbnails').getPublicUrl(path);
-            setCoverPreviewUrl(pubData.publicUrl);
-            alert('Thumbnail uploaded!');
-          }
-        } catch (err: any) {
-          alert(`Upload error: ${err.message}`);
-        } finally {
-          setUploadingCover(false);
-        }
-      };
-      input.click();
-    } else {
-      alert('On native apps, paste the thumbnail storage path below (e.g. tournaments/cover_123.webp)');
+    setUploadingCover(true);
+    const res = await pickAndUploadImage({ bucket: 'tournament-thumbnails', folder: 'tournaments' });
+    setUploadingCover(false);
+    if (res.error) {
+      alert(`Upload failed: ${res.error}`);
+      return;
     }
+    setFormCoverPath(res.path);
+    const { data: pubData } = supabase.storage.from('tournament-thumbnails').getPublicUrl(res.path);
+    setCoverPreviewUrl(pubData.publicUrl);
+    alert('Thumbnail uploaded!');
   }
 
   const filteredList = tournaments.filter((t) => {
@@ -537,8 +518,8 @@ export default function TournamentsScreen() {
               <FieldLabel>Tournament title *</FieldLabel>
               <TextInput value={formTitle} onChangeText={setFormTitle} placeholder="e.g. Free Fire Solo Blitz #10" placeholderTextColor={tokens.color.disabled} style={styles.modalInput} />
 
-              <View style={{ flexDirection: 'row', gap: tokens.space.sm }}>
-                <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space.sm }}>
+                <View style={{ flex: 1, minWidth: 200 }}>
                   <FieldLabel>Game mode *</FieldLabel>
                   <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
                     {(['solo', 'duo', 'squad'] as const).map((m) => (
@@ -548,7 +529,7 @@ export default function TournamentsScreen() {
                     ))}
                   </View>
                 </View>
-                <View style={{ flex: 1 }}>
+                <View style={{ flex: 1, minWidth: 200 }}>
                   <FieldLabel>Map</FieldLabel>
                   <TextInput value={formMap} onChangeText={setFormMap} placeholder="e.g. Bermuda" placeholderTextColor={tokens.color.disabled} style={styles.modalInput} />
                 </View>
@@ -568,16 +549,16 @@ export default function TournamentsScreen() {
               )}
               <TextInput value={formCoverPath} onChangeText={setFormCoverPath} placeholder="Or paste storage path e.g. tournaments/cover_123.webp" placeholderTextColor={tokens.color.disabled} style={styles.modalInput} />
 
-              <View style={{ flexDirection: 'row', gap: tokens.space.sm }}>
-                <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space.sm }}>
+                <View style={{ flex: 1, minWidth: 130 }}>
                   <FieldLabel>Capacity *</FieldLabel>
                   <TextInput value={formCapacity} onChangeText={setFormCapacity} keyboardType="numeric" placeholderTextColor={tokens.color.disabled} style={styles.modalInput} />
                 </View>
-                <View style={{ flex: 1 }}>
+                <View style={{ flex: 1, minWidth: 130 }}>
                   <FieldLabel>Entry fee</FieldLabel>
                   <TextInput value={formEntryFee} onChangeText={setFormEntryFee} keyboardType="numeric" placeholderTextColor={tokens.color.disabled} style={styles.modalInput} />
                 </View>
-                <View style={{ flex: 1 }}>
+                <View style={{ flex: 1, minWidth: 130 }}>
                   <FieldLabel>Prize pool</FieldLabel>
                   <TextInput value={formPrizePool} onChangeText={setFormPrizePool} keyboardType="numeric" placeholderTextColor={tokens.color.disabled} style={styles.modalInput} />
                 </View>
@@ -888,7 +869,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: tokens.space.md,
   },
-  modalScrollContent: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', width: '100%' },
+  modalScrollContent: { paddingVertical: tokens.space.lg, alignItems: 'center', width: '100%' },
   modalCard: {
     backgroundColor: tokens.color.surface,
     borderRadius: tokens.radius.card,

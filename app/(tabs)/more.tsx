@@ -8,6 +8,7 @@ import { BannerSlideshow } from '../../src/components/BannerSlideshow';
 import { tokens } from '../../src/theme/tokens';
 import { api } from '../../src/lib/api';
 import { supabase } from '../../src/lib/supabase';
+import { pickAndUploadImage } from '../../src/lib/upload';
 import { clearAdminSession } from '../../src/lib/adminSession';
 import { useAdminSession } from '../../src/hooks/useAdminSession';
 import { ConfirmDialog } from '../../src/components/ConfirmDialog';
@@ -75,20 +76,20 @@ export default function MoreScreen() {
 
       if (activeSection === 'admins') {
         const res = await api.listAdmins();
-        if (res.data) setAdmins(Array.isArray(res.data) ? res.data : res.data?.admins ?? []);
+        setAdmins(res.data ?? []);
       } else if (activeSection === 'content') {
         const [banRes, annRes] = await Promise.all([
           api.listBanners(),
           api.getAnnouncement(),
         ]);
-        if (banRes.data) setBanners(Array.isArray(banRes.data) ? banRes.data : banRes.data?.banners ?? []);
+        setBanners(banRes.data ?? []);
         if (annRes.data) {
           setAnnouncementText(annRes.data?.text ?? annRes.data?.announcement?.text ?? '');
           setAnnouncementLink(annRes.data?.link ?? annRes.data?.announcement?.link ?? '');
         }
       } else if (activeSection === 'audit') {
         const res = await api.queryAudit({ limit: 20 });
-        if (res.data) setAuditLogs(Array.isArray(res.data) ? res.data : res.data?.logs ?? []);
+        setAuditLogs(res.data ?? []);
       }
     } catch (err: any) {
       setError(err?.message ?? 'Failed to load section');
@@ -197,7 +198,7 @@ export default function MoreScreen() {
     setPermAdmin(a);
     setPermSelection({});
     const res = await api.listPermissions();
-    const perms = Array.isArray(res.data) ? res.data : res.data?.permissions ?? [];
+    const perms = res.data ?? [];
     setAllPermissions(perms);
     // Pre-fill current permissions from the admin's roles
     const cur: Record<string, boolean> = {};
@@ -279,39 +280,17 @@ export default function MoreScreen() {
   }
 
   async function handlePickAndUploadBanner() {
-    if (Platform.OS === 'web') {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.onchange = async (e: any) => {
-        const file = e.target?.files?.[0];
-        if (!file) return;
-
-        setUploadingImage(true);
-        try {
-          const cleanName = file.name.replace(/[^a-zA-Z0-9._-]/g, '');
-          const storagePath = `banners/banner_${Date.now()}_${cleanName}`;
-          const { data, error } = await supabase.storage.from('banners').upload(storagePath, file, { upsert: true });
-
-          if (error) {
-            alert(`Upload failed: ${error.message}`);
-          } else {
-            const path = data.path;
-            setBannerImage(path);
-            const { data: pubData } = supabase.storage.from('banners').getPublicUrl(path);
-            setBannerPreviewUrl(pubData.publicUrl);
-            alert('Banner image uploaded successfully!');
-          }
-        } catch (err: any) {
-          alert(`Upload error: ${err.message}`);
-        } finally {
-          setUploadingImage(false);
-        }
-      };
-      input.click();
-    } else {
-      alert('On native apps, select or paste the banner image storage path below');
+    setUploadingImage(true);
+    const res = await pickAndUploadImage({ bucket: 'banners', folder: 'banners' });
+    setUploadingImage(false);
+    if (res.error) {
+      alert(`Upload failed: ${res.error}`);
+      return;
     }
+    setBannerImage(res.path);
+    const { data: pubData } = supabase.storage.from('banners').getPublicUrl(res.path);
+    setBannerPreviewUrl(pubData.publicUrl);
+    alert('Banner image uploaded successfully!');
   }
 
   async function handleSaveBanner() {
